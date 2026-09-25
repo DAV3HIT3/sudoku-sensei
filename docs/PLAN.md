@@ -165,7 +165,7 @@ in the app can come later, once seeding is the slow part.
 | 1 Basics | Full house, naked single, hidden single |
 | 2 Intersections and subsets | Pointing, claiming (box/line), naked pair/triple/quad, hidden pair/triple/quad |
 | 3 Fish and wings | X-Wing, Swordfish, Jellyfish, XY-Wing, XYZ-Wing, W-Wing, Skyscraper, 2-String Kite, Empty Rectangle |
-| 4 Chains and uniqueness | Simple coloring, X-Chain, XY-Chain, Unique Rectangle types 1–4, BUG+1 |
+| 4 Coloring, chains and uniqueness | Simple Coloring (M6); X-Chain, XY-Chain, Unique Rectangle types 1–4, BUG+1 (M7) |
 | 5 Advanced | Finned and sashimi fish, AIC, ALS-XZ, Sue de Coq, forcing chains |
 
 Each technique is in the engine with test fixtures (a position where it applies and
@@ -175,11 +175,11 @@ the exact step expected) before it gets a lesson.
 
 Each milestone ends with something playable on the tailnet.
 
-**M0: Skeleton.** Next.js app, Drizzle, the `users` table, `add-app.sh`, compose with the sidecar, deployed and showing
+**M0: Skeleton (done).** Next.js app, Drizzle, the `users` table, `add-app.sh`, compose with the sidecar, deployed and showing
 "hello" to a tailnet user by name. Monster README updated.
 *Done when* `https://sudoku-sensei.tail3d5daf.ts.net` greets you.
 
-**M1: A playable board.** Grid, digit entry, pencil marks (auto-fill candidates as
+**M1: A playable board (done).** Grid, digit entry, pencil marks (auto-fill candidates as
 an option), keyboard and touch, undo/redo, conflict highlighting, a completion
 check. A handful of puzzles in the `puzzles` table, loaded from
 `content/puzzles.txt` on start-up and checked for a unique solution.
@@ -207,8 +207,8 @@ pencil mark that rules out the answer is pointed out before any technique. A pag
 per technique (`/techniques/<slug>`): the write-up from `content/techniques`, a
 worked example drawn from a stored drill, and the puzzles that practise it. Info
 icons link to these pages from the home page groups and from the game page. The
-home page groups puzzles by difficulty and technique, with a Continue row for
-games in progress.
+home page lists every technique with a count of puzzles solved, a numbered picker
+that starts on the game in progress or the next unsolved puzzle, and a button.
 *Done when* a stuck player can finish any tier 1–3 puzzle with hints alone. A test
 does this for every puzzle in the catalog, starting with no pencil marks.
 
@@ -234,8 +234,28 @@ day's puzzle is the same for everyone and turns at midnight Mountain time. A
 progress page shows each technique's mastery and the evidence behind it.
 *Done when* opening the app always offers one clear next thing to do.
 
-**M6: Tiers 4–5.** Chain and uniqueness techniques in the engine (the renderer
-gains chain links), their lessons and drills.
+**M6: Notes and coloring (done).**
+- Multi-select on the board: drag, Shift/⌘-click, Shift+arrows. A digit with
+  several cells selected adds that pencil mark to all of them, or removes it if
+  they all have it; Erase clears them all.
+- A coloring tool: paint cells in four colours to track chains by hand, and
+  focus a digit to see every cell it can still go in. Colours are saved with the
+  game and undoable.
+- Simple Coloring in the engine, starting tier 4: colour a digit's conjugate
+  pairs in two alternating colours. Color wrap: two cells of one colour see each
+  other, so that colour is false everywhere. Color trap: a cell seeing both
+  colours cannot hold the digit. Drawn in two colours, with its write-up, lesson,
+  drills and puzzles.
+- Guides: using notes (every candidate or pairs only, and when), keeping notes
+  accurate, and coloring by hand with the tool.
+*Done when* a player can find a Simple Coloring elimination by hand with the
+coloring tool, as the guide and lesson teach it. Simple Coloring drills offer two
+paint colours for exactly that. Guides live in `content/guides/<sort>-<slug>.md`
+and the `guides` table; 12 Simple Coloring puzzles were generated.
+
+**M7: Chains and uniqueness (tiers 4–5).** X-Chain, XY-Chain, Unique Rectangles
+1–4, BUG+1, then finned and sashimi fish, AIC, ALS-XZ, Sue de Coq and forcing
+chains, with their lessons and drills. The renderer gains chain links.
 
 **Later, if wanted.** Public accounts (see Built to go public), in-app content
 editing, streaks and achievements, timed modes, importing puzzles from a string or

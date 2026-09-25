@@ -136,3 +136,23 @@ test("every technique has a write-up headed with its name", () => {
     expect(md.length).toBeGreaterThan(100);
   }
 });
+
+describe("simple coloring", () => {
+  /** A position where digit d is a candidate only in `cells`, and everything else is open. */
+  const only = (d: number, cells: number[]) => drop(blank(), d, [...Array(81).keys()].filter((c) => !cells.includes(c)));
+
+  test("color trap: a cell seeing both colours loses the digit", () => {
+    // Chain r1c1 - r1c4 - r5c4 - r6c6; r6c1 sees r1c1 (one colour) and r6c6 (the other).
+    const p = only(1, [rc(0, 0), rc(0, 3), rc(4, 3), rc(5, 5), rc(5, 0), rc(5, 7), rc(8, 0)]);
+    expect(elims("simple-coloring", p)).toEqual(as([rc(5, 0)], 1));
+  });
+
+  test("color wrap: two cells of one colour see each other, so that colour loses the digit", () => {
+    // Chain r1c1 - r1c6 - r5c6 - r5c3 - r2c3; r1c1 and r2c3 share a colour and box 1.
+    const p = only(2, [rc(0, 0), rc(0, 5), rc(4, 5), rc(4, 2), rc(1, 2), rc(2, 1)]);
+    const s = find("simple-coloring", p)!;
+    expect(s.eliminate.map((e) => `${e.cell}:${e.digit}`).sort()).toEqual(as([rc(0, 0), rc(4, 5), rc(1, 2)], 2));
+    expect(s.why).toMatch(/r1c1 and r2c3 share a colour and see each other/);
+    expect(s.highlight.others!.length).toBeGreaterThan(0);
+  });
+});

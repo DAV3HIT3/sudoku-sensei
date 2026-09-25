@@ -50,6 +50,13 @@
       "when": 1790365023670,
       "tag": "0006_lessons_drills",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790373356905,
+      "tag": "0007_guides",
+      "breakpoints": true
     }
   ]
 }

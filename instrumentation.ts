@@ -6,4 +6,6 @@ export async function register() {
   await runMigrations();
   const { seedPuzzles } = await import("./lib/puzzles");
   await seedPuzzles();
+  const { seedGuides } = await import("./lib/guides");
+  await seedGuides();
 }

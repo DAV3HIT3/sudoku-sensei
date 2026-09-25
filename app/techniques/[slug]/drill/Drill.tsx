@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import GridView, { stepMarks, type Mark } from "@/components/GridView";
+import GridView, { PAINT_CLASSES, stepMarks, type Mark } from "@/components/GridView";
 import { placesDigits, type Verdict } from "@/lib/sudoku/drill";
 import { actionText } from "@/lib/sudoku/hint";
 import type { Candidate } from "@/lib/sudoku/solver";
@@ -15,9 +15,12 @@ const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
  * for everything else it is one or more candidates marked for removal. The server
  * checks it and says why.
  */
-export default function Drill({ slug, name, first, stats }: {
+export default function Drill({ slug, name, first, stats, coloring = false }: {
   slug: string; name: string; first: DrillView; stats: { tried: number; right: number };
+  /** Offer two paint colours, for techniques worked out by colouring a chain. */
+  coloring?: boolean;
 }) {
+  const [colors, setColors] = useState<number[]>(() => Array(81).fill(0));
   const [drill, setDrill] = useState(first);
   const [score, setScore] = useState(stats);
   const [selected, setSelected] = useState(-1);
@@ -53,7 +56,7 @@ export default function Drill({ slug, name, first, stats }: {
     try {
       const d = await getNextDrill(slug, drill.id);
       if (d) setDrill(d);
-      setSelected(-1); setPlace(null); setRemove([]); setVerdict(null);
+      setSelected(-1); setPlace(null); setRemove([]); setVerdict(null); setColors(Array(81).fill(0));
     } finally {
       setBusy(false);
     }
@@ -86,9 +89,11 @@ export default function Drill({ slug, name, first, stats }: {
         values={values}
         notes={(c) => position.cands[c]}
         marks={marks}
-        onSelect={setSelected}
+        onSelect={(c) => setSelected(c)}
         look={(c) => ({
-          tone: c === selected && !verdict ? "selected" : shown?.cells.has(c) ? "hint" : undefined,
+          selected: c === selected && !verdict,
+          paint: verdict ? 0 : colors[c],
+          tone: shown?.cells.has(c) ? "hint" : undefined,
           given: drill.givens[c] !== "0",
         })}
       />
@@ -107,6 +112,17 @@ export default function Drill({ slug, name, first, stats }: {
               <button key={d} type="button" onClick={() => pick(d)} className="aspect-square rounded bg-zinc-100 text-2xl hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700">{d}</button>
             ))}
           </div>
+          {coloring && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-xs text-zinc-500">Paint the selected cell:</span>
+              {[1, 2].map((k) => (
+                <button key={k} type="button" aria-label={`Paint colour ${k}`}
+                  onClick={() => selected >= 0 && setColors((cs) => cs.map((x, i) => (i === selected ? (x === k ? 0 : k) : x)))}
+                  className={`h-9 w-12 rounded border border-zinc-300 dark:border-zinc-700 ${PAINT_CLASSES[k]}`} />
+              ))}
+              <button type="button" onClick={() => setColors(Array(81).fill(0))} className="h-9 rounded bg-zinc-100 px-3 dark:bg-zinc-800">Clear</button>
+            </div>
+          )}
           <div className="flex gap-2">
             <button type="button" onClick={() => submit()} disabled={!answered || busy} className="rounded bg-sky-600 px-4 py-2 text-white disabled:opacity-40">Check</button>
             {!placing && remove.length > 0 && (

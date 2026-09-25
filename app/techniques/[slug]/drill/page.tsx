@@ -17,7 +17,7 @@ export default async function DrillPage({ params }: PageProps<"/techniques/[slug
         <h1 className="font-medium">{t.name} drills</h1>
       </header>
       {first ? (
-        <Drill slug={slug} name={t.name} first={first} stats={stats.get(slug) ?? { tried: 0, right: 0 }} />
+        <Drill slug={slug} name={t.name} first={first} stats={stats.get(slug) ?? { tried: 0, right: 0 }} coloring={t.tier >= 4} />
       ) : (
         <p>No drills for this technique yet.</p>
       )}

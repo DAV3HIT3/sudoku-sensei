@@ -97,7 +97,8 @@ export const games = pgTable(
   (t) => [unique().on(t.userId, t.puzzleId)],
 );
 
-export type GameState = { values: string; notes: number[] };
+/** colors: 0-4 per cell, the player's paint; absent in games saved before it existed. */
+export type GameState = { values: string; notes: number[]; colors?: number[] };
 /** `technique` is a technique slug, or "mistake" for a hint that pointed out an error. */
 export type HintTaken = { technique: string; level: number };
 
@@ -123,3 +124,13 @@ export const lessonProgress = pgTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.technique] })],
 );
+
+/** How-to guides (using notes, coloring), from content/guides on start-up. */
+export const guides = pgTable("guides", {
+  slug: text("slug").primaryKey(),
+  title: text("title").notNull(),
+  sort: integer("sort").notNull(),
+  summary: text("summary").notNull(),
+  /** Paragraphs separated by blank lines; a block of "- " lines is a list. */
+  body: text("body").notNull(),
+});

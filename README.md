@@ -22,7 +22,9 @@ then copies the technique catalog, grades every puzzle in `content/puzzles.txt`,
 and stores each one's drills.
 
 Technique write-ups are in `content/techniques/<slug>.md`: a `# Name` heading, then
-plain paragraphs separated by blank lines (no other Markdown is rendered).
+paragraphs separated by blank lines. Guides are in `content/guides/<sort>-<slug>.md`,
+headed `# Title`. In both, a block of lines starting `- ` is a list; no other
+Markdown is rendered.
 
 `npm run generate -- --per 12 --minutes 5` adds generated puzzles to
 `content/puzzles.txt` until each technique is the hardest step of 12 of them, or

@@ -5,7 +5,7 @@ import PuzzlePicker from "@/components/PuzzlePicker";
 import { gameStatuses } from "@/lib/games";
 import { training } from "@/lib/progress";
 import { listPuzzles } from "@/lib/puzzles";
-import { TECHNIQUES, TIERS } from "@/lib/sudoku/solver";
+import { TECHNIQUES, TIER_LIST, TIERS } from "@/lib/sudoku/solver";
 import { currentUser } from "@/lib/user";
 
 export default async function Home() {
@@ -45,7 +45,7 @@ export default async function Home() {
         />
       )}
       <p className="text-sm text-zinc-500">Puzzles by the hardest technique they need, easiest first.</p>
-      {[1, 2, 3, 0].map((tier) => {
+      {[...TIER_LIST, 0].map((tier) => {
         // Every technique gets a row, puzzles or not; tier 0 is the puzzles beyond the catalog.
         const rows = tier
           ? TECHNIQUES.flatMap((t, sort) => (t.tier === tier ? [{ t, list: groups.get(sort) ?? [] }] : []))

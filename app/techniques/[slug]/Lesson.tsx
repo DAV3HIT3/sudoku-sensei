@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import GridView, { stepMarks } from "@/components/GridView";
+import GridView, { stepMarks, type Mark } from "@/components/GridView";
 import { actionText } from "@/lib/sudoku/hint";
 import type { DrillView } from "@/lib/techniques";
 import { saveStage } from "./actions";
@@ -36,7 +36,12 @@ export default function Lesson({ slug, name, examples, initialStage }: {
   const ex = examples[Math.floor(stage / 3)];
   const part = stage % 3;
   const { cells, marks } = stepMarks(ex.step);
-  const shownMarks = part === 0 ? new Map() : part === 1 ? new Map([...marks].filter(([, m]) => m === "key")) : marks;
+  // Stage 2 draws the pattern itself: both colour groups, even where stage 3 will strike them out.
+  const pattern = new Map<string, Mark>([
+    ...ex.step.highlight.candidates.map((c): [string, Mark] => [`${c.cell}:${c.digit}`, "key"]),
+    ...(ex.step.highlight.others ?? []).map((c): [string, Mark] => [`${c.cell}:${c.digit}`, "key2"]),
+  ]);
+  const shownMarks = part === 0 ? new Map<string, Mark>() : part === 1 ? pattern : marks;
   const text = [
     `There is a ${name} here. Look for it, then press Next.`,
     ex.step.why,
