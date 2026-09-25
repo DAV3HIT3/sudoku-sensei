@@ -21,6 +21,9 @@ against its solution. The app applies its migrations (`db/migrations`) on start-
 then copies the technique catalog, grades every puzzle in `content/puzzles.txt`,
 and stores each one's drills.
 
+Technique write-ups are in `content/techniques/<slug>.md`: a `# Name` heading, then
+plain paragraphs separated by blank lines (no other Markdown is rendered).
+
 `npm run generate -- --per 12 --minutes 5` adds generated puzzles to
 `content/puzzles.txt` until each technique is the hardest step of 12 of them, or
 time runs out. Commit the result. After changing

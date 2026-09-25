@@ -201,11 +201,18 @@ saved a moment after each move and resumed on any device. A tab picks up moves
 made elsewhere when it regains focus. Last write wins between devices playing at
 the same instant. Lessons will save their place the same way in M4.
 
-**M3: Hints and a puzzle picker.** Three-level hints from the engine, drawn on the
-board. A puzzle picker by difficulty and by technique.
-*Done when* a stuck player can finish any tier 1–3 puzzle with hints alone.
+**M3: Hints, technique pages and a puzzle picker (done).** Three-level hints from
+the engine, drawn on the board, recorded in `games.hints`. A wrong digit or a
+pencil mark that rules out the answer is pointed out before any technique. A page
+per technique (`/techniques/<slug>`): the write-up from `content/techniques`, a
+worked example drawn from a stored drill, and the puzzles that practise it. Info
+icons link to these pages from the home page groups and from the game page. The
+home page groups puzzles by difficulty and technique, with a Continue row for
+games in progress.
+*Done when* a stuck player can finish any tier 1–3 puzzle with hints alone. A test
+does this for every puzzle in the catalog, starting with no pencil marks.
 
-**M4: Lessons and drills.** A page per technique, the lesson player, drills with
+**M4: Lessons and drills.** The lesson player on the technique pages, drills with
 right/wrong feedback that shows the expected step. Content for tiers 1–3.
 `technique_progress` updated from drills, hints and games.
 *Done when* someone who knows only singles can learn the X-Wing from the app.

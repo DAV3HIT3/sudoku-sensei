@@ -29,6 +29,20 @@
       "when": 1790361076668,
       "tag": "0003_grades",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790362147602,
+      "tag": "0004_hints",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790362303408,
+      "tag": "0005_technique_text",
+      "breakpoints": true
     }
   ]
 }

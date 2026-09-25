@@ -30,14 +30,19 @@ export const identities = pgTable(
 );
 
 /**
- * The solving techniques, in the order the solver tries them (lib/sudoku/solver.ts
- * is the source; copied here on start-up so content and progress can refer to them).
+ * The solving techniques, in the order the solver tries them. Copied here on
+ * start-up from lib/sudoku/solver.ts, with the write-up from
+ * content/techniques/<slug>.md, so content and progress can refer to them.
  */
 export const techniques = pgTable("techniques", {
   slug: text("slug").primaryKey(),
   name: text("name").notNull(),
   tier: integer("tier").notNull(),
   sort: integer("sort").notNull(),
+  /** The write-up's first paragraph. */
+  summary: text("summary").notNull().default(""),
+  /** The write-up: paragraphs separated by blank lines. */
+  body: text("body").notNull().default(""),
 });
 
 /** Puzzles to play. Seeded and graded from content/puzzles.txt on start-up (lib/puzzles.ts). */
@@ -82,6 +87,8 @@ export const games = pgTable(
     puzzleId: integer("puzzle_id").notNull().references(() => puzzles.id, { onDelete: "cascade" }),
     /** The board: 81 digits (0 empty) and each cell's pencil marks as a bitmask (bit d = digit d). */
     state: jsonb("state").$type<GameState>().notNull(),
+    /** Every hint taken, and how far it was revealed (1 names the technique, 3 gives it away). */
+    hints: jsonb("hints").$type<HintTaken[]>().notNull().default([]),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     /** When the board first matched the solution. */
@@ -91,3 +98,5 @@ export const games = pgTable(
 );
 
 export type GameState = { values: string; notes: number[] };
+/** `technique` is a technique slug, or "mistake" for a hint that pointed out an error. */
+export type HintTaken = { technique: string; level: number };

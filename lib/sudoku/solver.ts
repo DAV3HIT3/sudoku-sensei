@@ -400,6 +400,8 @@ export const TECHNIQUES: Technique[] = [
   { slug: "jellyfish", name: "Jellyfish", tier: 3, find: fish(4, "jellyfish") },
 ];
 
+export const TIERS = ["", "Easy", "Medium", "Hard"];
+
 /** The easiest step available, or null when the catalog is stuck. */
 export function nextStep(p: Position): Step | null {
   for (const t of TECHNIQUES) {
