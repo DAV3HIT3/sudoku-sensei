@@ -42,6 +42,10 @@ export default async function Technique({ params }: PageProps<"/techniques/[slug
             Key candidates are in <span className="rounded bg-amber-300 px-1 text-amber-950">amber</span>
             {t.tier >= 4 && <>, the other colour in <span className="rounded bg-violet-300 px-1 text-violet-950">violet</span></>}
             , removals are <span className="font-bold text-red-600 line-through">struck out</span>.
+            {examples.some((e) => e.step.highlight.links?.length) && (
+              <> Solid <span className="text-rose-600">red</span> lines join cells where one of the two must be true; dashed{" "}
+                <span className="text-sky-600">blue</span> lines join cells that cannot both be.</>
+            )}
           </p>
           <Lesson slug={slug} name={t.name} examples={examples} initialStage={lesson.stage} />
         </section>

@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { col, row } from "@/lib/sudoku/grid";
-import type { Step } from "@/lib/sudoku/solver";
+import type { Candidate, Link, Step } from "@/lib/sudoku/solver";
 
 const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
@@ -34,7 +34,32 @@ export function stepMarks(step: Step) {
   for (const { cell, digit } of step.highlight.others ?? []) marks.set(`${cell}:${digit}`, "key2");
   for (const { cell, digit } of step.eliminate) { marks.set(`${cell}:${digit}`, "remove"); cells.add(cell); }
   for (const { cell, digit } of step.place) { marks.set(`${cell}:${digit}`, "place"); cells.add(cell); }
-  return { cells, marks };
+  return { cells, marks, links: step.highlight.links ?? [] };
+}
+
+// Where a candidate sits, in a 900-unit square: its cell, then its place in the cell's 3x3.
+const at = ({ cell, digit }: Candidate) => ({
+  x: col(cell) * 100 + ((digit - 1) % 3) * 33.3 + 16.7,
+  y: row(cell) * 100 + Math.floor((digit - 1) / 3) * 33.3 + 16.7,
+});
+
+/** Lines between candidates: solid for a strong link, dashed for a weak one. */
+function Links({ links }: { links: Link[] }) {
+  return (
+    <svg viewBox="0 0 900 900" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full">
+      {links.map((l, i) => {
+        const [a, b] = [at(l.from), at(l.to)];
+        // Stop short of each candidate so the digits stay readable.
+        const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        const [dx, dy] = [((b.x - a.x) / len) * 12, ((b.y - a.y) / len) * 12];
+        return (
+          <line key={i} x1={a.x + dx} y1={a.y + dy} x2={b.x - dx} y2={b.y - dy}
+            className={l.strong ? "stroke-rose-600 dark:stroke-rose-400" : "stroke-sky-600 dark:stroke-sky-400"}
+            strokeWidth={4} strokeLinecap="round" strokeDasharray={l.strong ? undefined : "10 9"} />
+        );
+      })}
+    </svg>
+  );
 }
 
 const cellAt = (el: Element | null) => Number((el?.closest("[data-cell]") as HTMLElement | null)?.dataset.cell ?? -1);
@@ -44,11 +69,13 @@ const cellAt = (el: Element | null) => Number((el?.closest("[data-cell]") as HTM
  * board, lessons and drills decide what each cell looks like. With `onSelect`,
  * cells can be picked by tapping, ⌘/Shift-tapping, or dragging across them.
  */
-export default function GridView({ values, notes, look, marks, selectedDigit = 0, onSelect, label = "Sudoku board" }: {
+export default function GridView({ values, notes, look, marks, links = [], selectedDigit = 0, onSelect, label = "Sudoku board" }: {
   values: number[];
   notes: (c: number) => number;
   look: (c: number) => CellLook;
   marks: Map<string, Mark>;
+  /** Chain links to draw over the grid. */
+  links?: Link[];
   selectedDigit?: number;
   onSelect?: (c: number, how: Pick) => void;
   label?: string;
@@ -59,7 +86,7 @@ export default function GridView({ values, notes, look, marks, selectedDigit = 0
       role="grid"
       aria-label={label}
       aria-multiselectable={onSelect ? true : undefined}
-      className={`@container grid aspect-square w-full grid-cols-9 border-2 border-foreground select-none dark:border-white ${onSelect ? "touch-none" : ""}`}
+      className={`@container relative grid aspect-square w-full grid-cols-9 border-2 border-foreground select-none dark:border-white ${onSelect ? "touch-none" : ""}`}
       onPointerDown={onSelect && ((e) => {
         const c = cellAt(e.target as Element);
         if (c < 0) return;
@@ -124,6 +151,7 @@ export default function GridView({ values, notes, look, marks, selectedDigit = 0
           </Cell>
         );
       })}
+      {links.length > 0 && <Links links={links} />}
     </div>
   );
 }

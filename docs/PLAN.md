@@ -165,7 +165,7 @@ in the app can come later, once seeding is the slow part.
 | 1 Basics | Full house, naked single, hidden single |
 | 2 Intersections and subsets | Pointing, claiming (box/line), naked pair/triple/quad, hidden pair/triple/quad |
 | 3 Fish and wings | X-Wing, Swordfish, Jellyfish, XY-Wing, XYZ-Wing, W-Wing, Skyscraper, 2-String Kite, Empty Rectangle |
-| 4 Coloring, chains and uniqueness | Simple Coloring (M6); X-Chain, XY-Chain, Unique Rectangle types 1–4, BUG+1 (M7) |
+| 4 Advanced: coloring, chains and uniqueness | Unique Rectangle types 1–4, BUG+1, Simple Coloring, X-Chain, XY-Chain |
 | 5 Advanced | Finned and sashimi fish, AIC, ALS-XZ, Sue de Coq, forcing chains |
 
 Each technique is in the engine with test fixtures (a position where it applies and
@@ -253,9 +253,15 @@ coloring tool, as the guide and lesson teach it. Simple Coloring drills offer tw
 paint colours for exactly that. Guides live in `content/guides/<sort>-<slug>.md`
 and the `guides` table; 12 Simple Coloring puzzles were generated.
 
-**M7: Chains and uniqueness (tiers 4–5).** X-Chain, XY-Chain, Unique Rectangles
-1–4, BUG+1, then finned and sashimi fish, AIC, ALS-XZ, Sue de Coq and forcing
-chains, with their lessons and drills. The renderer gains chain links.
+**M7: Chains and uniqueness (tiers 4–5).** In two parts.
+- Tier 4 (done): Unique Rectangle types 1–4 (one technique; its explanation names
+  the type), BUG+1, X-Chain and XY-Chain, beside Simple Coloring. Steps can carry
+  chain links, drawn over the grid in hints, lessons and drills: solid for strong,
+  dashed for weak. 12 puzzles each. A test runs every instance of every technique at
+  every position of every stored solve against the solution; it caught a BUG+1 that
+  fired on a position that was not a true grave.
+- Tier 5 (next): finned and sashimi fish, AIC, ALS-XZ, Sue de Coq and forcing
+  chains, with their lessons and drills.
 
 **Later, if wanted.** Public accounts (see Built to go public), in-app content
 editing, streaks and achievements, timed modes, importing puzzles from a string or

@@ -35,7 +35,7 @@ export default function Lesson({ slug, name, examples, initialStage }: {
 
   const ex = examples[Math.floor(stage / 3)];
   const part = stage % 3;
-  const { cells, marks } = stepMarks(ex.step);
+  const { cells, marks, links } = stepMarks(ex.step);
   // Stage 2 draws the pattern itself: both colour groups, even where stage 3 will strike them out.
   const pattern = new Map<string, Mark>([
     ...ex.step.highlight.candidates.map((c): [string, Mark] => [`${c.cell}:${c.digit}`, "key"]),
@@ -57,6 +57,7 @@ export default function Lesson({ slug, name, examples, initialStage }: {
           values={ex.position.values}
           notes={(c) => ex.position.cands[c]}
           marks={shownMarks}
+          links={part > 0 ? links : []}
           look={(c) => ({
             // The pattern's cells from stage 2, and the cells it changes as well at stage 3.
             tone: (part === 1 ? ex.step.highlight.cells.includes(c) : part === 2 && cells.has(c)) ? "hint" : undefined,

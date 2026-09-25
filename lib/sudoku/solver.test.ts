@@ -156,3 +156,72 @@ describe("simple coloring", () => {
     expect(s.highlight.others!.length).toBeGreaterThan(0);
   });
 });
+
+describe("chains and uniqueness", () => {
+  const only = (d: number, cells: number[]) => drop(blank(), d, [...Array(81).keys()].filter((c) => !cells.includes(c)));
+  const colBut = (c: number, keep: number[]) => colCells(c, keep);
+
+  test("x-chain: r1c1 = r6c1 - r6c7 = r2c7; cells seeing both ends lose 4", () => {
+    const p = drop(drop(blank(), 4, colBut(0, [0, 5])), 4, colBut(6, [5, 1]));
+    const s = find("x-chain", p)!;
+    expect(s.eliminate.map((e) => `${e.cell}:${e.digit}`).sort()).toEqual(as([rc(1, 1), rc(1, 2), rc(0, 7), rc(0, 8)], 4));
+    expect(s.highlight.links!.map((l) => l.strong)).toEqual([true, false, true]);
+  });
+
+  test("xy-chain: {1,2} - {2,3} - {3,4} - {4,1}; cells seeing both ends lose 1", () => {
+    const p = blank();
+    [p.cands[rc(0, 0)], p.cands[rc(0, 4)], p.cands[rc(4, 4)], p.cands[rc(4, 8)]] = [bits(1, 2), bits(2, 3), bits(3, 4), bits(4, 1)];
+    expect(elims("xy-chain", p)).toEqual(as([rc(0, 8), rc(4, 0)], 1));
+  });
+
+  const rectangle = (roof: [number, number]) => {
+    const p = blank();
+    [p.cands[rc(0, 0)], p.cands[rc(0, 3)], p.cands[rc(1, 0)], p.cands[rc(1, 3)]] = [bits(1, 2), bits(1, 2), roof[0], roof[1]];
+    return p;
+  };
+
+  test("unique rectangle type 1: the fourth corner loses both digits", () => {
+    expect(elims("unique-rectangle", rectangle([bits(1, 2), bits(1, 2, 5)]))).toEqual(as([rc(1, 3)], 1, 2));
+  });
+
+  test("unique rectangle type 2: the shared extra digit leaves cells seeing both roof corners", () => {
+    expect(elims("unique-rectangle", rectangle([bits(1, 2, 7), bits(1, 2, 7)]))).toEqual(as([1, 2, 4, 5, 6, 7, 8].map((c) => rc(1, c)), 7));
+  });
+
+  test("unique rectangle type 4: 1 only in the roof in row 2, so the roof loses 2", () => {
+    const p = drop(rectangle([bits(1, 2, 7), bits(1, 2, 8)]), 1, [1, 2, 4, 5, 6, 7, 8].map((c) => rc(1, c)));
+    expect(elims("unique-rectangle", p)).toEqual(as([rc(1, 0), rc(1, 3)], 2));
+  });
+
+  test("bug+1: the odd cell takes the digit whose removal leaves every candidate twice per unit", () => {
+    // Only these four cells are empty (the rest is filled; only the pattern matters here).
+    const grave = (odd: number, third: number): Position => {
+      const p: Position = { values: Array(81).fill(9), cands: Array(81).fill(0) };
+      for (const c of [rc(0, 0), rc(0, 3), rc(1, 0), rc(1, 3)]) { p.values[c] = 0; p.cands[c] = bits(1, 2); }
+      p.cands[rc(1, 0)] = third;
+      p.cands[rc(1, 3)] = odd;
+      return p;
+    };
+    expect(find("bug-plus-one", grave(bits(1, 2, 3), bits(1, 2)))?.place).toEqual([{ cell: rc(1, 3), digit: 3 }]);
+    expect(find("bug-plus-one", grave(bits(1, 2, 3), bits(1, 4)))).toBeNull();
+  });
+});
+
+test("every instance of every technique, at every position of every corpus solve, agrees with the solution", () => {
+  for (const givens of corpus) {
+    const grid = parse(givens);
+    const solution = solve(grid)[0];
+    let p = start(grid);
+    for (let s = nextStep(p); s; s = nextStep(p)) {
+      for (const t of TECHNIQUES) {
+        let n = 0;
+        for (const inst of t.all(p)) {
+          for (const { cell, digit } of inst.place) expect(digit, `${t.slug} placed wrongly in ${givens}`).toBe(solution[cell]);
+          for (const { cell, digit } of inst.eliminate) expect(digit, `${t.slug} removed the answer in ${givens}: ${inst.why}`).not.toBe(solution[cell]);
+          if (++n >= 50) break;
+        }
+      }
+      p = apply(p, s);
+    }
+  }
+}, 600_000);
