@@ -47,25 +47,31 @@ export default async function Home() {
       )}
       <p className="text-sm text-zinc-500">Puzzles by the hardest technique they need, easiest first.</p>
       {[1, 2, 3, 0].map((tier) => {
-        // Tier 0 collects the puzzles beyond the catalog.
-        const rows = [...groups].filter(([d]) => (TECHNIQUES[d]?.tier ?? 0) === tier);
+        // Every technique gets a row, puzzles or not; tier 0 is the puzzles beyond the catalog.
+        const rows = tier
+          ? TECHNIQUES.flatMap((t, sort) => (t.tier === tier ? [{ t, list: groups.get(sort) ?? [] }] : []))
+          : groups.has(-1) ? [{ t: null, list: groups.get(-1)! }] : [];
         if (!rows.length) return null;
         return (
           <section key={tier} className="flex flex-col gap-2">
             <h2 className="text-sm font-medium tracking-wide text-zinc-500 uppercase">{tier ? TIERS[tier] : "Expert"}</h2>
             <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
-              {rows.map(([difficulty, list]) => {
-                const t = TECHNIQUES[difficulty];
-                return (
-                  <li key={difficulty} className="grid grid-cols-[minmax(0,1fr)_auto_4rem_5rem] items-center gap-2 py-2 sm:grid-cols-[minmax(0,1fr)_auto_5rem_6rem]">
-                    <span className="flex min-w-0 items-center gap-1">
-                      <span className="truncate text-sm font-medium sm:text-base">{t ? t.name : "Beyond the lessons"}</span>
-                      <InfoLink href={t ? `/techniques/${t.slug}` : "/techniques"} label={t ? `About ${t.name}` : "About the techniques"} />
-                    </span>
+              {rows.map(({ t, list }) => (
+                <li key={t?.slug ?? "expert"} className="grid grid-cols-[minmax(0,1fr)_auto_4rem_5rem] items-center gap-2 py-2 sm:grid-cols-[minmax(0,1fr)_auto_5rem_6rem]">
+                  <span className="flex min-w-0 items-center gap-1">
+                    <span className="truncate text-sm font-medium sm:text-base">{t ? t.name : "Beyond the lessons"}</span>
+                    <InfoLink href={t ? `/techniques/${t.slug}` : "/techniques"} label={t ? `About ${t.name}` : "About the techniques"} />
+                  </span>
+                  {list.length ? (
                     <PuzzlePicker label={t ? t.name : "Expert"} puzzles={list.map((p) => ({ id: p.id, status: status.get(p.id) }))} />
-                  </li>
-                );
-              })}
+                  ) : (
+                    <>
+                      <span className="col-span-2 text-right text-sm text-zinc-500">No puzzles yet</span>
+                      <Link href={`/techniques/${t!.slug}#lesson`} className="rounded bg-sky-600 py-2 text-center text-sm text-white">Lesson</Link>
+                    </>
+                  )}
+                </li>
+              ))}
             </ul>
           </section>
         );

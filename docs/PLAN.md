@@ -189,10 +189,12 @@ check. A handful of puzzles in the `puzzles` table, loaded from
 grader, the generator script, drill capture. Fixtures per technique. Fill `puzzles`
 and `drills` with a first batch across difficulties.
 *Done when* every stored puzzle grades, and the grader agrees with known ratings on
-a set of reference puzzles. Result: 204 puzzles, 203 within the catalog. Every step
-on each one is checked against its solution, and every technique is used somewhere.
-Hidden Quad and Jellyfish are rarely the hardest step (1 and 2 puzzles), and Full
-House never is, since a Naked Single always comes first.
+a set of reference puzzles. Result: 231 puzzles, 230 within the catalog. Every step
+on each one is checked against its solution, and every technique is the hardest
+step of at least one (a test), so each has a row of puzzles on the home page: 12
+each, except Hidden Quad at 2, which a simpler subset nearly always pre-empts. Full
+House puzzles are nearly complete grids, which the generator makes by stopping
+early.
 
 **Saved games (done, ahead of M3).** One game per player per puzzle in `games`,
 saved a moment after each move and resumed on any device. A tab picks up moves
