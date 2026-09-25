@@ -45,9 +45,13 @@ because every request comes through the sidecar. There is no CI: run
 passed it:
 
 ```bash
-ssh monster 'cd ~/proj/sudoku-sensei && git pull --ff-only && \
-  SENSEI_TAG=$(git rev-parse --short HEAD) docker compose -f deploy/compose.yml up -d --build'
+ssh monster 'cd ~/proj/sudoku-sensei && git pull --ff-only && export SENSEI_TAG=$(git rev-parse --short HEAD) && \
+  docker compose -f deploy/compose.yml build sudoku-sensei && docker compose -f deploy/compose.yml up -d sudoku-sensei'
 ```
+
+Building first keeps the old container serving until the new image is ready, so
+the site is down only while the container restarts (a few seconds, including
+migrations and regrading). A failed build leaves the old one running.
 
 Roll back with `SENSEI_TAG=<older-sha> docker compose -f deploy/compose.yml up -d`.
 `deploy/.env` on monster (mode 600, not in git) holds `DATABASE_URL`, the

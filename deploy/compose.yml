@@ -1,7 +1,8 @@
 # Runs on monster against the house Postgres. From ~/proj/sudoku-sensei there:
 #
-#   Deploy:    git pull --ff-only && SENSEI_TAG=$(git rev-parse --short HEAD) \
-#                docker compose -f deploy/compose.yml up -d --build
+#   Deploy:    git pull --ff-only && export SENSEI_TAG=$(git rev-parse --short HEAD) &&
+#                docker compose -f deploy/compose.yml build sudoku-sensei &&
+#                docker compose -f deploy/compose.yml up -d sudoku-sensei
 #   Roll back: SENSEI_TAG=<older-sha> docker compose -f deploy/compose.yml up -d
 #
 # deploy/.env (mode 600, not in git) holds DATABASE_URL, the postgres:5432 form

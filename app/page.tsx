@@ -1,6 +1,6 @@
 import Link from "next/link";
 import InfoLink from "@/components/InfoLink";
-import PuzzleLinks from "@/components/PuzzleLinks";
+import PuzzlePicker from "@/components/PuzzlePicker";
 import { gameStatuses } from "@/lib/games";
 import { listPuzzles } from "@/lib/puzzles";
 import { TECHNIQUES, TIERS } from "@/lib/sudoku/solver";
@@ -10,7 +10,6 @@ export default async function Home() {
   const user = await currentUser();
   const puzzles = await listPuzzles();
   const status = user ? await gameStatuses(user.id) : new Map<number, "solved" | "playing">();
-  const playing = puzzles.filter((p) => status.get(p.id) === "playing").map((p) => p.id);
   // Grouped by the hardest technique each needs, easiest first (the list is sorted that way).
   const groups = Map.groupBy(puzzles, (p) => p.difficulty ?? -1);
   return (
@@ -24,16 +23,7 @@ export default async function Home() {
         </div>
         <Link href="/techniques" className="mt-3 text-sm text-zinc-500 hover:underline">Techniques</Link>
       </header>
-      {playing.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="font-medium">Continue</h2>
-          <PuzzleLinks ids={playing} status={status} />
-        </section>
-      )}
-      <p className="text-sm text-zinc-500">
-        Puzzles by the hardest technique they need. <span className="text-sky-700 dark:text-sky-300">Blue</span> is in progress,{" "}
-        <span className="text-emerald-700 dark:text-emerald-400">green</span> is solved.
-      </p>
+      <p className="text-sm text-zinc-500">Puzzles by the hardest technique they need, easiest first.</p>
       {[...groups].map(([difficulty, list]) => {
         const t = TECHNIQUES[difficulty];
         return (
@@ -43,7 +33,7 @@ export default async function Home() {
               <InfoLink href={t ? `/techniques/${t.slug}` : "/techniques"} label={t ? `About ${t.name}` : "About the techniques"} />
               <span className="ml-auto text-sm font-normal text-zinc-500">{t ? TIERS[t.tier] : "Expert"}</span>
             </h2>
-            <PuzzleLinks ids={list.map((p) => p.id)} status={status} />
+            <PuzzlePicker label={t ? t.name : "Expert"} puzzles={list.map((p) => ({ id: p.id, status: status.get(p.id) }))} />
           </section>
         );
       })}
