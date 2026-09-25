@@ -5,8 +5,9 @@ A Sudoku game that teaches advanced solving techniques. The plan and roadmap are
 
 ## Running it
 
-Node 24, and the `sudokusensei` database on home-db (see the
-[monster README](https://github.com/DAV3HIT3/monster)).
+Node 24, and the `sudokusensei_dev` database on home-db (see the
+[monster README](https://github.com/DAV3HIT3/monster)). Never point development
+at `sudokusensei`: the app migrates whatever database it starts on.
 
 ```bash
 cp .env.example .env.local   # fill in the password
@@ -14,7 +15,8 @@ npm install
 npm run dev                  # http://localhost:3000
 ```
 
-The app applies its migrations (`db/migrations`) on start-up. After changing
+`npm test` runs the engine tests (`lib/sudoku`). The app applies its migrations
+(`db/migrations`) on start-up, then loads any new puzzle in `content/puzzles.txt`. After changing
 `db/schema.ts`, run `npm run db:generate` and commit the new migration.
 
 Players are identified by the `Tailscale-User-Login` header, which the sidecar adds
