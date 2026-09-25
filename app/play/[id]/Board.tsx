@@ -200,7 +200,7 @@ export default function Board({ puzzleId, givens, solution, saved }: {
                   type="button"
                   onClick={() => input(d, noteMode)}
                   aria-label={done ? `${d}, all nine placed` : String(d)}
-                  className={`aspect-square rounded bg-zinc-100 text-2xl hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 ${done ? "relative text-zinc-400 after:absolute after:inset-x-[18%] after:top-1/2 after:h-0.5 after:-rotate-45 after:bg-zinc-400 dark:text-zinc-600 dark:after:bg-zinc-600" : ""}`}
+                  className={`aspect-square rounded bg-zinc-100 text-2xl hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 ${done ? "relative text-zinc-400 after:absolute after:inset-x-[18%] after:top-1/2 after:h-0.5 after:rotate-45 after:bg-red-600 dark:text-zinc-600 dark:after:bg-red-500" : ""}`}
                 >
                   {d}
                 </button>

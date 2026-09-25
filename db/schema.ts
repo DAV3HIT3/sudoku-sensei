@@ -1,4 +1,6 @@
+import { sql } from "drizzle-orm";
 import { char, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, unique } from "drizzle-orm/pg-core";
+import type { Position, Step } from "@/lib/sudoku/solver";
 
 /**
  * A player. Holds nothing about how they sign in: that is `identities`, so a
@@ -27,15 +29,46 @@ export const identities = pgTable(
   (t) => [primaryKey({ columns: [t.provider, t.subject] })],
 );
 
-/** Puzzles to play. Seeded from content/puzzles.txt on start-up (lib/puzzles.ts). */
+/**
+ * The solving techniques, in the order the solver tries them (lib/sudoku/solver.ts
+ * is the source; copied here on start-up so content and progress can refer to them).
+ */
+export const techniques = pgTable("techniques", {
+  slug: text("slug").primaryKey(),
+  name: text("name").notNull(),
+  tier: integer("tier").notNull(),
+  sort: integer("sort").notNull(),
+});
+
+/** Puzzles to play. Seeded and graded from content/puzzles.txt on start-up (lib/puzzles.ts). */
 export const puzzles = pgTable("puzzles", {
   id: serial("id").primaryKey(),
   /** 81 digits, row by row, 0 for empty. */
   givens: char("givens", { length: 81 }).notNull().unique(),
   solution: char("solution", { length: 81 }).notNull(),
   source: text("source").notNull(),
+  /** techniques.sort of the hardest technique needed; null when the catalog cannot solve it. */
+  difficulty: integer("difficulty"),
+  /** Slugs of every technique the solver used, easiest first. */
+  techniques: text("techniques").array().notNull().default(sql`'{}'`),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * "Find the X-Wing here": the position just before a puzzle first needs a
+ * technique, and the step the solver took. One per puzzle per technique.
+ */
+export const drills = pgTable(
+  "drills",
+  {
+    id: serial("id").primaryKey(),
+    puzzleId: integer("puzzle_id").notNull().references(() => puzzles.id, { onDelete: "cascade" }),
+    technique: text("technique").notNull().references(() => techniques.slug),
+    position: jsonb("position").$type<Position>().notNull(),
+    step: jsonb("step").$type<Step>().notNull(),
+  },
+  (t) => [unique().on(t.puzzleId, t.technique)],
+);
 
 /**
  * A player's game of one puzzle: one per player per puzzle, saved as they play,

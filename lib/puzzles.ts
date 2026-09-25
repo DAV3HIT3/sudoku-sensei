@@ -1,27 +1,79 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { puzzles } from "@/db/schema";
+import { drills, puzzles, techniques } from "@/db/schema";
 import { format, parse, solve } from "@/lib/sudoku/grid";
+import { grade, TECHNIQUES } from "@/lib/sudoku/solver";
 
-/** Adds any puzzle in content/puzzles.txt not already stored. Runs on start-up. */
+/**
+ * Brings the database in line with the engine and content/puzzles.txt: the
+ * technique catalog, every puzzle with its grade, and its drills. Runs on
+ * start-up. Everything is regraded each time, so an engine change reaches stored
+ * grades with the next deploy.
+ */
+// ponytail: regrades every puzzle on every start (about a second for a few hundred); stamp an engine version if it gets slow.
 export async function seedPuzzles(): Promise<void> {
+  const db = getDb();
+  await db
+    .insert(techniques)
+    .values(TECHNIQUES.map((t, sort) => ({ slug: t.slug, name: t.name, tier: t.tier, sort })))
+    .onConflictDoUpdate({ target: techniques.slug, set: { name: sql`excluded.name`, tier: sql`excluded.tier`, sort: sql`excluded.sort` } });
+
   const text = await readFile(path.join(process.cwd(), "content", "puzzles.txt"), "utf8");
-  const rows = [];
+  const graded = [];
   for (const line of text.split("\n")) {
     if (!line.trim() || line.startsWith("#")) continue;
     const [givens, ...source] = line.trim().split(" ");
     const grid = parse(givens);
     const solutions = solve(grid);
     if (solutions.length !== 1) throw new Error(`content/puzzles.txt: ${givens} has ${solutions.length === 0 ? "no" : "several"} solutions`);
-    rows.push({ givens: format(grid), solution: format(solutions[0]), source: source.join(" ") });
+    const g = grade(grid);
+    graded.push({
+      row: {
+        givens: format(grid),
+        solution: format(solutions[0]),
+        source: source.join(" "),
+        difficulty: g.solved ? g.difficulty : null,
+        techniques: g.techniques,
+      },
+      firstUses: g.firstUses,
+    });
   }
-  if (rows.length) await getDb().insert(puzzles).values(rows).onConflictDoNothing();
+
+  for (const chunk of chunks(graded, 200)) {
+    const ids = await db
+      .insert(puzzles)
+      .values(chunk.map((x) => x.row))
+      .onConflictDoUpdate({
+        target: puzzles.givens,
+        set: { source: sql`excluded.source`, difficulty: sql`excluded.difficulty`, techniques: sql`excluded.techniques` },
+      })
+      .returning({ id: puzzles.id, givens: puzzles.givens });
+    const idOf = new Map(ids.map((r) => [r.givens, r.id]));
+    const rows = chunk.flatMap((x) =>
+      x.firstUses.map((u) => ({ puzzleId: idOf.get(x.row.givens)!, technique: u.step.technique, position: u.position, step: u.step })));
+    for (const part of chunks(rows, 500))
+      await db
+        .insert(drills)
+        .values(part)
+        .onConflictDoUpdate({ target: [drills.puzzleId, drills.technique], set: { position: sql`excluded.position`, step: sql`excluded.step` } });
+  }
+  // Drills for techniques a regrade no longer uses.
+  await db.execute(sql`delete from drills d using puzzles p where d.puzzle_id = p.id and not (d.technique = any(p.techniques))`);
+}
+
+function chunks<T>(xs: T[], n: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < xs.length; i += n) out.push(xs.slice(i, i + n));
+  return out;
 }
 
 export const listPuzzles = () =>
-  getDb().select({ id: puzzles.id, givens: puzzles.givens, source: puzzles.source }).from(puzzles).orderBy(asc(puzzles.id));
+  getDb()
+    .select({ id: puzzles.id, givens: puzzles.givens, source: puzzles.source, difficulty: puzzles.difficulty })
+    .from(puzzles)
+    .orderBy(sql`${puzzles.difficulty} nulls last`, asc(puzzles.id));
 
 export async function getPuzzle(id: number) {
   const [p] = await getDb().select().from(puzzles).where(eq(puzzles.id, id));
