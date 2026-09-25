@@ -15,7 +15,7 @@ to maintain:
 | App | Next.js 16 (App Router), React 19, TypeScript, Tailwind 4 |
 | Database | Postgres on home-db, through Drizzle ORM and `postgres` (postgres.js) |
 | Validation | zod, at every server action and route handler |
-| Tests | vitest for the engine and the database layer; Playwright later, for the board |
+| Tests | vitest for the engine, run locally with `npm run check` (typecheck, tests, build). No CI |
 | Deploy | Docker on monster, Tailscale sidecar, `deploy/compose.yml` |
 
 ## Architecture
@@ -131,25 +131,24 @@ Going public then means:
 users              id, display_name, created_at
 identities         provider, subject (pk), user_id fk
 techniques         slug pk, name, tier, sort, summary, body_md, prerequisites text[]
-lessons            id, technique_slug fk, sort, title, steps jsonb
 puzzles            id, givens char(81) unique, solution char(81), difficulty,
                    techniques text[], source, created_at
 drills             id, puzzle_id fk, technique_slug fk, position jsonb, expected jsonb
 games              id, user_id fk, puzzle_id fk, state jsonb, started_at,
                    updated_at, finished_at (unique user_id, puzzle_id)
-technique_progress user_id, technique_slug, lessons_done, drills_seen,
-                   drills_correct, hint_count, mastery real, last_practiced_at
-                   (pk user_id, technique_slug)
+drill_attempts     id, user_id fk, drill_id fk, correct, created_at
+lesson_progress    user_id, technique (pk), stage, completed_at, updated_at
 ```
 
-- A lesson is a list of steps, each a board position, the highlights to draw and a
-  paragraph of narration. The lesson player steps through them; the renderer is the
-  same one hints use.
+- A lesson is built from the technique's write-up and three of its stored drills,
+  so it needs no table of its own. The lesson player and the hints share one
+  renderer (`components/GridView.tsx`).
 - `games.state` is the whole board, pencil marks included, saved as you play, so a
   game resumes on any device. Undo history stays on the device. Hints and mistakes
   get columns when M3 counts them.
-- `mastery` is a score from 0 to 1 per technique, from drill accuracy and hints
-  taken, decaying with time since last practice. It is a formula, not a model.
+- Mastery (M5) will be a score from 0 to 1 per technique, computed from drill
+  accuracy and hints taken, decaying with time since last practice. It is a
+  formula over those tables, not a model and not a stored column.
 
 ### Where content lives
 
@@ -176,8 +175,7 @@ the exact step expected) before it gets a lesson.
 
 Each milestone ends with something playable on the tailnet.
 
-**M0: Skeleton.** Next.js app, Drizzle, the `users` table, CI (typecheck, build;
-vitest arrives with the engine), `add-app.sh`, compose with the sidecar, deployed and showing
+**M0: Skeleton.** Next.js app, Drizzle, the `users` table, `add-app.sh`, compose with the sidecar, deployed and showing
 "hello" to a tailnet user by name. Monster README updated.
 *Done when* `https://sudoku-sensei.tail3d5daf.ts.net` greets you.
 
@@ -212,9 +210,17 @@ games in progress.
 *Done when* a stuck player can finish any tier 1–3 puzzle with hints alone. A test
 does this for every puzzle in the catalog, starting with no pencil marks.
 
-**M4: Lessons and drills.** The lesson player on the technique pages, drills with
-right/wrong feedback that shows the expected step. Content for tiers 1–3.
-`technique_progress` updated from drills, hints and games.
+**M4: Lessons and drills (done).** Each technique page has a lesson: three worked
+examples chosen from the stored drills, each in three stages (find it, the pattern
+and why it works, what it removes). The stage reached is saved in
+`lesson_progress`, so a lesson resumes on any device. Drills
+(`/techniques/<slug>/drill`) ask the player to place the digit (singles) or mark
+candidates to remove. The server checks the answer against every instance of the
+technique in the position, accepts part of one, records it in `drill_attempts`,
+and explains the step either way. Each solver step carries a `why` naming its
+cells, which the lessons, drills and level-3 hints all show. Progress per
+technique is counted from `drill_attempts`, `lesson_progress` and `games.hints`
+rather than kept in a separate table.
 *Done when* someone who knows only singles can learn the X-Wing from the app.
 
 **M5: The training loop.** Mastery score, a progress page per technique, "what to

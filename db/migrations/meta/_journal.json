@@ -43,6 +43,13 @@
       "when": 1790362303408,
       "tag": "0005_technique_text",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790365023670,
+      "tag": "0006_lessons_drills",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 /**
  * The human-style solver: a position (digits plus the candidates still open), one
- * function per technique that finds the next step it can take, and the order a
- * person would try them in.
+ * generator per technique that lists every step it can take there, and the order
+ * a person would try them in.
  */
 import { ALL, box, candidates, col, PEERS, popcount, row, type Grid } from "./grid.ts";
 
@@ -14,6 +14,8 @@ export type Step = {
   eliminate: Candidate[];
   /** What to draw: the cells the pattern lives in and its key candidates. */
   highlight: { cells: number[]; candidates: Candidate[] };
+  /** Why this instance works, in a sentence or two, naming its cells. */
+  why: string;
 };
 
 /** Digits placed so far, and for each empty cell the candidates not yet ruled out. */
@@ -39,15 +41,25 @@ export const UNITS: number[][] = [
   ...Array.from({ length: 9 }, (_, b) =>
     Array.from({ length: 9 }, (_, i) => (Math.floor(b / 3) * 3 + Math.floor(i / 3)) * 9 + (b % 3) * 3 + (i % 3))),
 ];
-const ROWS = UNITS.slice(0, 9), COLS = UNITS.slice(9, 18), BOXES = UNITS.slice(18);
+const ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8], COLS = ROWS.map((i) => i + 9), BOXES = ROWS.map((i) => i + 18);
 const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const PEER_SET = PEERS.map((p) => new Set(p));
 
 export const sees = (a: number, b: number) => PEER_SET[a].has(b);
 const has = (p: Position, cell: number, d: number) => (p.cands[cell] & (1 << d)) !== 0;
 const digitsOf = (mask: number) => DIGITS.filter((d) => mask & (1 << d));
-/** The cells of a unit where d is still a candidate. */
-const spots = (p: Position, unit: number[], d: number) => unit.filter((c) => has(p, c, d));
+/** The cells of unit u where d is still a candidate. */
+const spots = (p: Position, u: number, d: number) => UNITS[u].filter((c) => has(p, c, d));
+const cands = (p: Position, cells: number[], ds: number[]) =>
+  cells.flatMap((cell) => ds.filter((d) => has(p, cell, d)).map((digit) => ({ cell, digit })));
+
+// Names for explanations: r3c4, row 3, column 4, box 5 (boxes numbered row by row).
+export const cellName = (c: number) => `r${row(c) + 1}c${col(c) + 1}`;
+const unitName = (u: number) => (u < 9 ? `row ${u + 1}` : u < 18 ? `column ${u - 8}` : `box ${u - 17}`);
+const list = (xs: (string | number)[]) =>
+  xs.length < 3 ? xs.join(" and ") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`;
+const cellList = (cs: number[]) => list(cs.map(cellName));
+const setOf = (m: number) => `{${digitsOf(m).join(",")}}`;
 
 /** Cells other than `except` that see every cell in `cells` and still have d. */
 function seeingAll(p: Position, cells: number[], d: number, except: number[] = cells): Candidate[] {
@@ -62,117 +74,135 @@ function* combinations<T>(items: T[], k: number, from = 0, acc: T[] = []): Gener
   for (let i = from; i < items.length; i++) yield* combinations(items, k, i + 1, [...acc, items[i]]);
 }
 
-const step = (technique: string, s: Partial<Step>): Step => ({
+const step = (technique: string, s: Partial<Step> & { why: string }): Step => ({
   technique, place: [], eliminate: [], highlight: { cells: [], candidates: [] }, ...s,
 });
 
+type Finder = (p: Position) => Generator<Step>;
+
 // ---- Tier 1: singles -------------------------------------------------------
 
-function fullHouse(p: Position): Step | null {
-  for (const unit of UNITS) {
-    const empty = unit.filter((c) => !p.values[c]);
+function* fullHouse(p: Position): Generator<Step> {
+  for (let u = 0; u < 27; u++) {
+    const empty = UNITS[u].filter((c) => !p.values[c]);
     if (empty.length !== 1) continue;
-    const used = unit.reduce((m, c) => m | (1 << p.values[c]), 0);
+    const used = UNITS[u].reduce((m, c) => m | (1 << p.values[c]), 0);
     const digit = digitsOf(ALL & ~used)[0];
-    return step("full-house", { place: [{ cell: empty[0], digit }], highlight: { cells: unit, candidates: [] } });
+    yield step("full-house", {
+      place: [{ cell: empty[0], digit }],
+      highlight: { cells: UNITS[u], candidates: [] },
+      why: `${cap(unitName(u))} has only ${cellName(empty[0])} left empty, and ${digit} is the one digit it is missing.`,
+    });
   }
-  return null;
 }
 
-function nakedSingle(p: Position): Step | null {
+function* nakedSingle(p: Position): Generator<Step> {
   for (let c = 0; c < 81; c++)
     if (!p.values[c] && popcount(p.cands[c]) === 1) {
       const digit = digitsOf(p.cands[c])[0];
-      return step("naked-single", { place: [{ cell: c, digit }], highlight: { cells: [c], candidates: [] } });
+      yield step("naked-single", {
+        place: [{ cell: c, digit }],
+        highlight: { cells: [c], candidates: [] },
+        why: `Every digit but ${digit} is ruled out of ${cellName(c)}.`,
+      });
     }
-  return null;
 }
 
-function hiddenSingle(p: Position): Step | null {
+function* hiddenSingle(p: Position): Generator<Step> {
   // Boxes first: that is where people find them.
-  for (const unit of [...BOXES, ...ROWS, ...COLS])
+  for (const u of [...BOXES, ...ROWS, ...COLS])
     for (const d of DIGITS) {
-      const s = spots(p, unit, d);
+      const s = spots(p, u, d);
       if (s.length === 1)
-        return step("hidden-single", { place: [{ cell: s[0], digit: d }], highlight: { cells: unit, candidates: [{ cell: s[0], digit: d }] } });
+        yield step("hidden-single", {
+          place: [{ cell: s[0], digit: d }],
+          highlight: { cells: UNITS[u], candidates: [{ cell: s[0], digit: d }] },
+          why: `In ${unitName(u)}, ${d} fits only in ${cellName(s[0])}.`,
+        });
     }
-  return null;
 }
 
 // ---- Tier 2: intersections and subsets ------------------------------------
 
 /** Pointing: a digit's spots in a box all lie on one line, so the rest of that line loses it. */
-function pointing(p: Position): Step | null {
+function* pointing(p: Position): Generator<Step> {
   for (const b of BOXES)
     for (const d of DIGITS) {
       const s = spots(p, b, d);
       if (s.length < 2) continue;
       for (const lines of [ROWS, COLS]) {
-        const line = lines.find((l) => s.every((c) => l.includes(c)));
-        if (!line) continue;
-        const eliminate = line.filter((c) => !b.includes(c) && has(p, c, d)).map((cell) => ({ cell, digit: d }));
+        const line = lines.find((l) => s.every((c) => UNITS[l].includes(c)));
+        if (line === undefined) continue;
+        const eliminate = cands(p, UNITS[line].filter((c) => !UNITS[b].includes(c)), [d]);
         if (eliminate.length)
-          return step("pointing", { eliminate, highlight: { cells: b, candidates: s.map((cell) => ({ cell, digit: d })) } });
+          yield step("pointing", {
+            eliminate,
+            highlight: { cells: UNITS[b], candidates: cands(p, s, [d]) },
+            why: `In ${unitName(b)}, ${d} can only go on ${unitName(line)}, so ${unitName(line)} has its ${d} inside ${unitName(b)} and nowhere else.`,
+          });
       }
     }
-  return null;
 }
 
 /** Claiming: a digit's spots on a line all lie in one box, so the rest of that box loses it. */
-function claiming(p: Position): Step | null {
+function* claiming(p: Position): Generator<Step> {
   for (const line of [...ROWS, ...COLS])
     for (const d of DIGITS) {
       const s = spots(p, line, d);
       if (s.length < 2) continue;
-      const b = BOXES[box(s[0])];
-      if (!s.every((c) => b.includes(c))) continue;
-      const eliminate = b.filter((c) => !line.includes(c) && has(p, c, d)).map((cell) => ({ cell, digit: d }));
+      const b = 18 + box(s[0]);
+      if (!s.every((c) => UNITS[b].includes(c))) continue;
+      const eliminate = cands(p, UNITS[b].filter((c) => !UNITS[line].includes(c)), [d]);
       if (eliminate.length)
-        return step("claiming", { eliminate, highlight: { cells: line, candidates: s.map((cell) => ({ cell, digit: d })) } });
+        yield step("claiming", {
+          eliminate,
+          highlight: { cells: UNITS[line], candidates: cands(p, s, [d]) },
+          why: `In ${unitName(line)}, ${d} can only go inside ${unitName(b)}, so ${unitName(b)} has its ${d} on ${unitName(line)} and nowhere else.`,
+        });
     }
-  return null;
 }
 
 /** n cells in a unit holding only n digits between them: the unit's other cells lose those digits. */
-const nakedSubset = (n: number, technique: string) => (p: Position): Step | null => {
-  for (const unit of UNITS) {
-    const open = unit.filter((c) => !p.values[c] && popcount(p.cands[c]) <= n);
+const nakedSubset = (n: number, technique: string): Finder => function* (p) {
+  for (let u = 0; u < 27; u++) {
+    const open = UNITS[u].filter((c) => !p.values[c] && popcount(p.cands[c]) <= n);
     for (const cells of combinations(open, n)) {
       const mask = cells.reduce((m, c) => m | p.cands[c], 0);
       if (popcount(mask) !== n) continue;
-      const eliminate = unit
-        .filter((c) => !cells.includes(c))
-        .flatMap((cell) => digitsOf(mask).filter((d) => has(p, cell, d)).map((digit) => ({ cell, digit })));
+      const eliminate = cands(p, UNITS[u].filter((c) => !cells.includes(c)), digitsOf(mask));
       if (eliminate.length)
-        return step(technique, {
+        yield step(technique, {
           eliminate,
-          highlight: { cells, candidates: cells.flatMap((cell) => digitsOf(p.cands[cell]).map((digit) => ({ cell, digit }))) },
+          highlight: { cells, candidates: cands(p, cells, DIGITS) },
+          why: `${cellList(cells)} hold only ${list(digitsOf(mask))} between them, so those digits fill those cells and no other cell of ${unitName(u)} can have them.`,
         });
     }
   }
-  return null;
 };
 
 /** n digits confined to the same n cells of a unit: those cells lose every other digit. */
-const hiddenSubset = (n: number, technique: string) => (p: Position): Step | null => {
-  for (const unit of UNITS) {
-    const open = DIGITS.filter((d) => { const k = spots(p, unit, d).length; return k >= 2 && k <= n; });
+const hiddenSubset = (n: number, technique: string): Finder => function* (p) {
+  for (let u = 0; u < 27; u++) {
+    const open = DIGITS.filter((d) => { const k = spots(p, u, d).length; return k >= 2 && k <= n; });
     for (const ds of combinations(open, n)) {
-      const cells = [...new Set(ds.flatMap((d) => spots(p, unit, d)))];
+      const cells = [...new Set(ds.flatMap((d) => spots(p, u, d)))];
       if (cells.length !== n) continue;
       const keep = ds.reduce((m, d) => m | (1 << d), 0);
       const eliminate = cells.flatMap((cell) => digitsOf(p.cands[cell] & ~keep).map((digit) => ({ cell, digit })));
       if (eliminate.length)
-        return step(technique, {
+        yield step(technique, {
           eliminate,
-          highlight: { cells, candidates: cells.flatMap((cell) => ds.filter((d) => has(p, cell, d)).map((digit) => ({ cell, digit }))) },
+          highlight: { cells, candidates: cands(p, cells, ds) },
+          why: `In ${unitName(u)}, ${list(ds)} fit only in ${cellList(cells)}, so those cells hold those digits and nothing else.`,
         });
     }
   }
-  return null;
 };
 
 // ---- Tier 3: fish and wings -----------------------------------------------
+
+const lineName = (u: number) => (u < 9 ? `${u + 1}` : `${u - 8}`);
+const linesName = (us: number[]) => `${us[0] < 9 ? "rows" : "columns"} ${list(us.map(lineName))}`;
 
 /**
  * Basic fish of size n (X-Wing, Swordfish, Jellyfish): n rows whose spots for a
@@ -180,54 +210,57 @@ const hiddenSubset = (n: number, technique: string) => (p: Position): Step | nul
  * those rows, so the columns lose it everywhere else. And the same with rows and
  * columns swapped.
  */
-const fish = (n: number, technique: string) => (p: Position): Step | null => {
+const fish = (n: number, technique: string): Finder => function* (p) {
   for (const d of DIGITS)
     for (const [bases, covers] of [[ROWS, COLS], [COLS, ROWS]]) {
       const lines = bases.filter((l) => { const k = spots(p, l, d).length; return k >= 2 && k <= n; });
       for (const base of combinations(lines, n)) {
         const baseCells = base.flatMap((l) => spots(p, l, d));
-        const coverIdx = [...new Set(baseCells.map((c) => covers.findIndex((u) => u.includes(c))))];
-        if (coverIdx.length !== n) continue;
-        const eliminate = coverIdx
-          .flatMap((i) => spots(p, covers[i], d))
-          .filter((c) => !baseCells.includes(c))
-          .map((cell) => ({ cell, digit: d }));
+        const cover = [...new Set(baseCells.map((c) => covers.find((u) => UNITS[u].includes(c))!))].sort((a, b) => a - b);
+        if (cover.length !== n) continue;
+        const eliminate = cover.flatMap((u) => spots(p, u, d)).filter((c) => !baseCells.includes(c)).map((cell) => ({ cell, digit: d }));
         if (eliminate.length)
-          return step(technique, { eliminate, highlight: { cells: baseCells, candidates: baseCells.map((cell) => ({ cell, digit: d })) } });
+          yield step(technique, {
+            eliminate,
+            highlight: { cells: baseCells, candidates: cands(p, baseCells, [d]) },
+            why: `In ${linesName(base)}, ${d} fits only in ${linesName(cover)}. So ${linesName(cover)} each get their ${d} from ${linesName(base)}, and nowhere else.`,
+          });
       }
     }
-  return null;
 };
 
-/** Every conjugate pair: units where d has exactly two spots, one of which must hold it. */
-function strongLinks(p: Position, d: number, units = UNITS): [number, number][] {
-  const out: [number, number][] = [];
+/** Every conjugate pair for d in the given units: two spots, one of which must hold it. */
+function strongLinks(p: Position, d: number, units: number[]): { u: number; ends: [number, number] }[] {
+  const out: { u: number; ends: [number, number] }[] = [];
   for (const u of units) {
     const s = spots(p, u, d);
-    if (s.length === 2) out.push([s[0], s[1]]);
+    if (s.length === 2) out.push({ u, ends: [s[0], s[1]] });
   }
   return out;
 }
+const flips = (e: [number, number]): [number, number][] => [e, [e[1], e[0]]];
 
 /**
  * Skyscraper: two parallel conjugate pairs for a digit sharing one end's line (the
  * base). One of the two far ends (the tops) must hold the digit, so a cell seeing
  * both tops loses it.
  */
-function skyscraper(p: Position): Step | null {
+function* skyscraper(p: Position): Generator<Step> {
   for (const d of DIGITS)
-    for (const [lines, cross] of [[ROWS, col], [COLS, row]] as const) {
-      const pairs = strongLinks(p, d, lines);
-      for (const [a, b] of combinations(pairs, 2))
-        for (const [baseA, topA] of [a, [a[1], a[0]]])
-          for (const [baseB, topB] of [b, [b[1], b[0]]]) {
+    for (const [lines, cross] of [[ROWS, col], [COLS, row]] as const)
+      for (const [a, b] of combinations(strongLinks(p, d, lines), 2))
+        for (const [baseA, topA] of flips(a.ends))
+          for (const [baseB, topB] of flips(b.ends)) {
             if (cross(baseA) !== cross(baseB) || cross(topA) === cross(topB)) continue;
-            const eliminate = seeingAll(p, [topA, topB], d, [...a, ...b]);
+            const cells = [...a.ends, ...b.ends];
+            const eliminate = seeingAll(p, [topA, topB], d, cells);
             if (eliminate.length)
-              return step("skyscraper", { eliminate, highlight: { cells: [...a, ...b], candidates: [...a, ...b].map((cell) => ({ cell, digit: d })) } });
+              yield step("skyscraper", {
+                eliminate,
+                highlight: { cells, candidates: cands(p, cells, [d]) },
+                why: `${cap(unitName(a.u))} and ${unitName(b.u)} each have ${d} in just two cells, and ${cellName(baseA)} and ${cellName(baseB)} are in line, so at most one of them is ${d}. So ${cellName(topA)} or ${cellName(topB)} is ${d}, and a cell that sees both cannot be.`,
+              });
           }
-    }
-  return null;
 }
 
 /**
@@ -235,21 +268,22 @@ function skyscraper(p: Position): Step | null {
  * end of each in the same box. One of the two far ends must hold the digit, so a
  * cell seeing both loses it.
  */
-function twoStringKite(p: Position): Step | null {
-  for (const d of DIGITS) {
-    const rowPairs = strongLinks(p, d, ROWS), colPairs = strongLinks(p, d, COLS);
-    for (const r of rowPairs)
-      for (const c of colPairs)
-        for (const [rNear, rFar] of [r, [r[1], r[0]]])
-          for (const [cNear, cFar] of [c, [c[1], c[0]]]) {
+function* twoStringKite(p: Position): Generator<Step> {
+  for (const d of DIGITS)
+    for (const r of strongLinks(p, d, ROWS))
+      for (const c of strongLinks(p, d, COLS))
+        for (const [rNear, rFar] of flips(r.ends))
+          for (const [cNear, cFar] of flips(c.ends)) {
             const cells = [rNear, rFar, cNear, cFar];
             if (new Set(cells).size !== 4 || box(rNear) !== box(cNear) || box(rFar) === box(cFar)) continue;
             const eliminate = seeingAll(p, [rFar, cFar], d, cells);
             if (eliminate.length)
-              return step("2-string-kite", { eliminate, highlight: { cells, candidates: cells.map((cell) => ({ cell, digit: d })) } });
+              yield step("2-string-kite", {
+                eliminate,
+                highlight: { cells, candidates: cands(p, cells, [d]) },
+                why: `${d} has two places in ${unitName(r.u)} and two in ${unitName(c.u)}. ${cellName(rNear)} and ${cellName(cNear)} share a box, so they are not both ${d}: ${cellName(rFar)} or ${cellName(cFar)} is, and a cell that sees both cannot be.`,
+              });
           }
-  }
-  return null;
 }
 
 /**
@@ -259,39 +293,36 @@ function twoStringKite(p: Position): Step | null {
  * digit, or the box's must be in column c. Either way cell (q, c) loses it. Same
  * with rows and columns swapped.
  */
-function emptyRectangle(p: Position): Step | null {
+function* emptyRectangle(p: Position): Generator<Step> {
   for (const d of DIGITS)
     for (let b = 0; b < 9; b++) {
-      const s = spots(p, BOXES[b], d);
+      const s = spots(p, 18 + b, d);
       if (s.length < 2 || new Set(s.map(row)).size === 1 || new Set(s.map(col)).size === 1) continue;
       for (const hr of new Set(s.map(row)))
         for (const hc of new Set(s.map(col))) {
           if (!s.every((x) => row(x) === hr || col(x) === hc)) continue;
+          const found = (near: number, far: number, target: number, link: number) =>
+            step("empty-rectangle", {
+              eliminate: [{ cell: target, digit: d }],
+              highlight: { cells: [...s, near, far], candidates: cands(p, [...s, near, far], [d]) },
+              why: `In box ${b + 1}, ${d} lies only on row ${hr + 1} and column ${hc + 1}. In ${unitName(link)}, ${d} is at ${cellName(near)} or ${cellName(far)}. If ${cellName(far)} is not ${d}, ${cellName(near)} is, which pushes box ${b + 1}'s ${d} onto ${row(near) === hr ? `column ${hc + 1}` : `row ${hr + 1}`}. Either way ${cellName(target)} is not ${d}.`,
+            });
           // A column conjugate pair outside the box's stack, one end on row hr.
-          for (const [x, y] of strongLinks(p, d, COLS))
-            for (const [near, far] of [[x, y], [y, x]]) {
+          for (const { u, ends } of strongLinks(p, d, COLS))
+            for (const [near, far] of flips(ends)) {
               if (row(near) !== hr || Math.floor(col(near) / 3) === b % 3 || Math.floor(row(far) / 3) === Math.floor(b / 3)) continue;
               const target = row(far) * 9 + hc;
-              if (has(p, target, d))
-                return step("empty-rectangle", {
-                  eliminate: [{ cell: target, digit: d }],
-                  highlight: { cells: [...s, near, far], candidates: [...s, near, far].map((cell) => ({ cell, digit: d })) },
-                });
+              if (has(p, target, d)) yield found(near, far, target, u);
             }
           // A row conjugate pair outside the box's band, one end on column hc.
-          for (const [x, y] of strongLinks(p, d, ROWS))
-            for (const [near, far] of [[x, y], [y, x]]) {
+          for (const { u, ends } of strongLinks(p, d, ROWS))
+            for (const [near, far] of flips(ends)) {
               if (col(near) !== hc || Math.floor(row(near) / 3) === Math.floor(b / 3) || Math.floor(col(far) / 3) === b % 3) continue;
               const target = hr * 9 + col(far);
-              if (has(p, target, d))
-                return step("empty-rectangle", {
-                  eliminate: [{ cell: target, digit: d }],
-                  highlight: { cells: [...s, near, far], candidates: [...s, near, far].map((cell) => ({ cell, digit: d })) },
-                });
+              if (has(p, target, d)) yield found(near, far, target, u);
             }
         }
     }
-  return null;
 }
 
 const bivalue = (p: Position) => Array.from({ length: 81 }, (_, c) => c).filter((c) => popcount(p.cands[c]) === 2);
@@ -300,7 +331,7 @@ const bivalue = (p: Position) => Array.from({ length: 81 }, (_, c) => c).filter(
  * XY-Wing: a pivot {x,y} seeing pincers {x,z} and {y,z}. Whichever the pivot is,
  * one pincer is z, so a cell seeing both pincers loses z.
  */
-function xyWing(p: Position): Step | null {
+function* xyWing(p: Position): Generator<Step> {
   const bv = bivalue(p);
   for (const pivot of bv) {
     const [x, y] = digitsOf(p.cands[pivot]);
@@ -314,17 +345,40 @@ function xyWing(p: Position): Step | null {
         const digit = digitsOf(z)[0];
         const eliminate = seeingAll(p, [a, b], digit, [pivot, a, b]);
         if (eliminate.length)
-          return step("xy-wing", {
+          yield step("xy-wing", {
             eliminate,
-            highlight: { cells: [pivot, a, b], candidates: [pivot, a, b].flatMap((cell) => digitsOf(p.cands[cell]).map((digit) => ({ cell, digit }))) },
+            highlight: { cells: [pivot, a, b], candidates: cands(p, [pivot, a, b], DIGITS) },
+            why: `The pivot ${cellName(pivot)} is ${x} or ${y}. If ${x}, ${cellName(a)} ${setOf(ma)} is ${digit}; if ${y}, ${cellName(b)} ${setOf(mb)} is. One of them is ${digit}, so a cell that sees both cannot be.`,
           });
       }
   }
-  return null;
+}
+
+/**
+ * W-Wing: two cells {x,y} that do not see each other, joined by a conjugate pair
+ * on x whose ends each see one of them. One of the pair is x, so one of the two
+ * cells is y, and a cell seeing both loses y.
+ */
+function* wWing(p: Position): Generator<Step> {
+  for (const [a, b] of combinations(bivalue(p), 2)) {
+    if (p.cands[a] !== p.cands[b] || sees(a, b)) continue;
+    for (const [x, y] of [digitsOf(p.cands[a]), digitsOf(p.cands[a]).reverse()])
+      for (const { u, ends: [e, f] } of strongLinks(p, x, UNITS.map((_, i) => i))) {
+        if ([e, f].some((c) => c === a || c === b)) continue;
+        if (!((sees(e, a) && sees(f, b)) || (sees(e, b) && sees(f, a)))) continue;
+        const eliminate = seeingAll(p, [a, b], y);
+        if (eliminate.length)
+          yield step("w-wing", {
+            eliminate,
+            highlight: { cells: [a, b, e, f], candidates: [...cands(p, [a, b], [x, y]), ...cands(p, [e, f], [x])] },
+            why: `${cellName(a)} and ${cellName(b)} are both ${setOf(p.cands[a])}. In ${unitName(u)}, ${x} is at ${cellName(e)} or ${cellName(f)}, and each sees one of them, so they cannot both be ${x}. One of them is ${y}, so a cell that sees both cannot be.`,
+          });
+      }
+  }
 }
 
 /** XYZ-Wing: a pivot {x,y,z} seeing pincers {x,z} and {y,z}. A cell seeing all three loses z. */
-function xyzWing(p: Position): Step | null {
+function* xyzWing(p: Position): Generator<Step> {
   const bv = bivalue(p);
   for (let pivot = 0; pivot < 81; pivot++) {
     if (popcount(p.cands[pivot]) !== 3) continue;
@@ -336,68 +390,54 @@ function xyzWing(p: Position): Step | null {
       const digit = digitsOf(z)[0];
       const eliminate = seeingAll(p, [pivot, a, b], digit);
       if (eliminate.length)
-        return step("xyz-wing", {
+        yield step("xyz-wing", {
           eliminate,
-          highlight: { cells: [pivot, a, b], candidates: [pivot, a, b].flatMap((cell) => digitsOf(p.cands[cell]).map((digit) => ({ cell, digit }))) },
+          highlight: { cells: [pivot, a, b], candidates: cands(p, [pivot, a, b], DIGITS) },
+          why: `The pivot ${cellName(pivot)} ${setOf(p.cands[pivot])} sees ${cellName(a)} ${setOf(p.cands[a])} and ${cellName(b)} ${setOf(p.cands[b])}. Whatever the pivot is, one of the three is ${digit}, so a cell that sees all three cannot be.`,
         });
     }
   }
-  return null;
 }
 
-/**
- * W-Wing: two cells {x,y} that do not see each other, joined by a conjugate pair
- * on x whose ends each see one of them. One of the pair is x, so one of the two
- * cells is y, and a cell seeing both loses y.
- */
-function wWing(p: Position): Step | null {
-  const bv = bivalue(p);
-  for (const [a, b] of combinations(bv, 2)) {
-    if (p.cands[a] !== p.cands[b] || sees(a, b)) continue;
-    for (const [x, y] of [digitsOf(p.cands[a]), digitsOf(p.cands[a]).reverse()])
-      for (const [e, f] of strongLinks(p, x)) {
-        if ([e, f].some((c) => c === a || c === b)) continue;
-        if (!((sees(e, a) && sees(f, b)) || (sees(e, b) && sees(f, a)))) continue;
-        const eliminate = seeingAll(p, [a, b], y);
-        if (eliminate.length)
-          return step("w-wing", {
-            eliminate,
-            highlight: {
-              cells: [a, b, e, f],
-              candidates: [...[a, b].flatMap((cell) => [x, y].map((digit) => ({ cell, digit }))), { cell: e, digit: x }, { cell: f, digit: x }],
-            },
-          });
-      }
-  }
-  return null;
-}
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 
 // ---- The catalog ------------------------------------------------------------
 
-export type Technique = { slug: string; name: string; tier: number; find: (p: Position) => Step | null };
+export type Technique = {
+  slug: string;
+  name: string;
+  tier: number;
+  /** Every step this technique can take in the position. */
+  all: Finder;
+  /** The first of them, or null. */
+  find: (p: Position) => Step | null;
+};
+
+const t = (slug: string, name: string, tier: number, all: Finder): Technique =>
+  ({ slug, name, tier, all, find: (p) => all(p).next().value ?? null });
 
 /** Easiest first: the solver always takes the first that applies, which is what makes it a grader. */
 export const TECHNIQUES: Technique[] = [
-  { slug: "full-house", name: "Full House", tier: 1, find: fullHouse },
-  { slug: "naked-single", name: "Naked Single", tier: 1, find: nakedSingle },
-  { slug: "hidden-single", name: "Hidden Single", tier: 1, find: hiddenSingle },
-  { slug: "pointing", name: "Pointing", tier: 2, find: pointing },
-  { slug: "claiming", name: "Claiming", tier: 2, find: claiming },
-  { slug: "naked-pair", name: "Naked Pair", tier: 2, find: nakedSubset(2, "naked-pair") },
-  { slug: "hidden-pair", name: "Hidden Pair", tier: 2, find: hiddenSubset(2, "hidden-pair") },
-  { slug: "naked-triple", name: "Naked Triple", tier: 2, find: nakedSubset(3, "naked-triple") },
-  { slug: "hidden-triple", name: "Hidden Triple", tier: 2, find: hiddenSubset(3, "hidden-triple") },
-  { slug: "naked-quad", name: "Naked Quad", tier: 2, find: nakedSubset(4, "naked-quad") },
-  { slug: "hidden-quad", name: "Hidden Quad", tier: 2, find: hiddenSubset(4, "hidden-quad") },
-  { slug: "x-wing", name: "X-Wing", tier: 3, find: fish(2, "x-wing") },
-  { slug: "skyscraper", name: "Skyscraper", tier: 3, find: skyscraper },
-  { slug: "2-string-kite", name: "2-String Kite", tier: 3, find: twoStringKite },
-  { slug: "empty-rectangle", name: "Empty Rectangle", tier: 3, find: emptyRectangle },
-  { slug: "xy-wing", name: "XY-Wing", tier: 3, find: xyWing },
-  { slug: "w-wing", name: "W-Wing", tier: 3, find: wWing },
-  { slug: "swordfish", name: "Swordfish", tier: 3, find: fish(3, "swordfish") },
-  { slug: "xyz-wing", name: "XYZ-Wing", tier: 3, find: xyzWing },
-  { slug: "jellyfish", name: "Jellyfish", tier: 3, find: fish(4, "jellyfish") },
+  t("full-house", "Full House", 1, fullHouse),
+  t("naked-single", "Naked Single", 1, nakedSingle),
+  t("hidden-single", "Hidden Single", 1, hiddenSingle),
+  t("pointing", "Pointing", 2, pointing),
+  t("claiming", "Claiming", 2, claiming),
+  t("naked-pair", "Naked Pair", 2, nakedSubset(2, "naked-pair")),
+  t("hidden-pair", "Hidden Pair", 2, hiddenSubset(2, "hidden-pair")),
+  t("naked-triple", "Naked Triple", 2, nakedSubset(3, "naked-triple")),
+  t("hidden-triple", "Hidden Triple", 2, hiddenSubset(3, "hidden-triple")),
+  t("naked-quad", "Naked Quad", 2, nakedSubset(4, "naked-quad")),
+  t("hidden-quad", "Hidden Quad", 2, hiddenSubset(4, "hidden-quad")),
+  t("x-wing", "X-Wing", 3, fish(2, "x-wing")),
+  t("skyscraper", "Skyscraper", 3, skyscraper),
+  t("2-string-kite", "2-String Kite", 3, twoStringKite),
+  t("empty-rectangle", "Empty Rectangle", 3, emptyRectangle),
+  t("xy-wing", "XY-Wing", 3, xyWing),
+  t("w-wing", "W-Wing", 3, wWing),
+  t("swordfish", "Swordfish", 3, fish(3, "swordfish")),
+  t("xyz-wing", "XYZ-Wing", 3, xyzWing),
+  t("jellyfish", "Jellyfish", 3, fish(4, "jellyfish")),
 ];
 
 export const TIERS = ["", "Easy", "Medium", "Hard"];

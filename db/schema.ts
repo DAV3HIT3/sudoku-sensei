@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { char, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, unique } from "drizzle-orm/pg-core";
+import { boolean, char, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, unique } from "drizzle-orm/pg-core";
 import type { Position, Step } from "@/lib/sudoku/solver";
 
 /**
@@ -100,3 +100,26 @@ export const games = pgTable(
 export type GameState = { values: string; notes: number[] };
 /** `technique` is a technique slug, or "mistake" for a hint that pointed out an error. */
 export type HintTaken = { technique: string; level: number };
+
+/** Every drill a player answers. Progress per technique is counted from these. */
+export const drillAttempts = pgTable("drill_attempts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  drillId: integer("drill_id").notNull().references(() => drills.id, { onDelete: "cascade" }),
+  correct: boolean("correct").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Where a player is in each technique's lesson, so it resumes on any device. */
+export const lessonProgress = pgTable(
+  "lesson_progress",
+  {
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    technique: text("technique").notNull().references(() => techniques.slug),
+    stage: integer("stage").notNull(),
+    /** When the player first reached the end. */
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.technique] })],
+);

@@ -40,13 +40,18 @@ can be added later. See "Built to go public" in `docs/PLAN.md`.
 Runs on monster as the app and a Tailscale sidecar, at
 `https://sudoku-sensei.tail3d5daf.ts.net` only. No host port is published: the
 tailnet is the access control, and the identity headers are only trustworthy
-because every request comes through the sidecar. Deploy a `main` commit whose CI
-passed:
+because every request comes through the sidecar. There is no CI: run
+`npm run check` (typecheck, tests, build) locally, then deploy a `main` commit that
+passed it:
 
 ```bash
-ssh monster 'cd ~/proj/sudoku-sensei && git pull --ff-only && \
-  SENSEI_TAG=$(git rev-parse --short HEAD) docker compose -f deploy/compose.yml up -d --build'
+ssh monster 'cd ~/proj/sudoku-sensei && git pull --ff-only && export SENSEI_TAG=$(git rev-parse --short HEAD) && \
+  docker compose -f deploy/compose.yml build sudoku-sensei && docker compose -f deploy/compose.yml up -d sudoku-sensei'
 ```
+
+Building first keeps the old container serving until the new image is ready, so
+the site is down only while the container restarts (a few seconds, including
+migrations and regrading). A failed build leaves the old one running.
 
 Roll back with `SENSEI_TAG=<older-sha> docker compose -f deploy/compose.yml up -d`.
 `deploy/.env` on monster (mode 600, not in git) holds `DATABASE_URL`, the
