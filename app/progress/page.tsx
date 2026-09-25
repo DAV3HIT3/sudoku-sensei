@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MASTERED } from "@/lib/mastery";
 import { training } from "@/lib/progress";
-import { TIERS } from "@/lib/sudoku/solver";
+import { TIER_LIST, TIERS } from "@/lib/sudoku/solver";
 import { currentUser } from "@/lib/user";
 
 export default async function Progress() {
@@ -21,7 +21,7 @@ export default async function Progress() {
         Mastery comes from your last five drills or from solving puzzles that need the technique without a full hint,
         whichever is better. Hints take some away, and it fades after two weeks without practice. 80% is mastered.
       </p>
-      {[1, 2, 3].map((tier) => (
+      {TIER_LIST.map((tier) => (
         <section key={tier} className="flex flex-col gap-2">
           <h2 className="text-sm font-medium tracking-wide text-zinc-500 uppercase">{TIERS[tier]}</h2>
           <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">

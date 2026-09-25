@@ -1,20 +1,35 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { drillStats, lessonsDone } from "@/lib/progress";
-import { TIERS } from "@/lib/sudoku/solver";
+import { TIER_LIST, TIERS } from "@/lib/sudoku/solver";
+import { listGuides } from "@/lib/guides";
 import { listTechniques } from "@/lib/techniques";
 import { currentUser } from "@/lib/user";
 
 export default async function Techniques() {
   await connection(); // read from the database per request, not frozen at build time
-  const [all, user] = await Promise.all([listTechniques(), currentUser()]);
+  const [all, guides, user] = await Promise.all([listTechniques(), listGuides(), currentUser()]);
   const [done, stats] = user ? await Promise.all([lessonsDone(user.id), drillStats(user.id)]) : [new Set<string>(), new Map()];
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-6">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
       <Link href="/" className="text-sm text-zinc-500 hover:underline">← Puzzles</Link>
       <h1 className="text-3xl font-semibold tracking-tight">Techniques</h1>
-      <p className="text-zinc-600 dark:text-zinc-400">In the order the solver tries them, easiest first. Each hint names one of these.</p>
-      {[1, 2, 3].map((tier) => (
+      <p className="text-zinc-600 dark:text-zinc-400">
+        Start with the guides on notes and coloring. The techniques follow in the order the solver tries them, easiest
+        first; each hint names one of them.
+      </p>
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium tracking-wide text-zinc-500 uppercase">Guides</h2>
+        <ul className="flex flex-col gap-3">
+          {guides.map((g) => (
+            <li key={g.slug}>
+              <Link href={`/guides/${g.slug}`} className="font-medium hover:underline">{g.title}</Link>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">{g.summary}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+      {TIER_LIST.map((tier) => (
         <section key={tier} className="flex flex-col gap-3">
           <h2 className="text-sm font-medium tracking-wide text-zinc-500 uppercase">{TIERS[tier]}</h2>
           <ul className="flex flex-col gap-3">

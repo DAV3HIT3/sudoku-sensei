@@ -12,8 +12,11 @@ export type Step = {
   technique: string;
   place: Candidate[];
   eliminate: Candidate[];
-  /** What to draw: the cells the pattern lives in and its key candidates. */
-  highlight: { cells: number[]; candidates: Candidate[] };
+  /**
+   * What to draw: the cells the pattern lives in and its key candidates, plus a
+   * second group in another colour where a pattern has two sides (coloring).
+   */
+  highlight: { cells: number[]; candidates: Candidate[]; others?: Candidate[] };
   /** Why this instance works, in a sentence or two, naming its cells. */
   why: string;
 };
@@ -399,6 +402,55 @@ function* xyzWing(p: Position): Generator<Step> {
   }
 }
 
+// ---- Tier 4: coloring ------------------------------------------------------
+
+/**
+ * Simple Coloring: link every conjugate pair of a digit (a unit where it has
+ * exactly two cells) and colour each connected group in two alternating colours.
+ * One colour holds the digit in every one of its cells, the other in none.
+ * Color wrap: two cells of one colour see each other, so that colour is the one
+ * with none, and all its cells lose the digit. Color trap: a cell outside the
+ * group that sees both colours cannot hold the digit.
+ */
+function* simpleColoring(p: Position): Generator<Step> {
+  for (const d of DIGITS) {
+    const next = new Map<number, number[]>();
+    for (const { ends: [a, b] } of strongLinks(p, d, UNITS.map((_, i) => i))) {
+      next.set(a, [...(next.get(a) ?? []), b]);
+      next.set(b, [...(next.get(b) ?? []), a]);
+    }
+    const colour = new Map<number, 0 | 1>();
+    for (const root of next.keys()) {
+      if (colour.has(root)) continue;
+      const group = [root];
+      colour.set(root, 0);
+      for (let i = 0; i < group.length; i++)
+        for (const n of next.get(group[i])!)
+          if (!colour.has(n)) { colour.set(n, colour.get(group[i]) === 0 ? 1 : 0); group.push(n); }
+      if (group.length < 3) continue;
+      const sides = [group.filter((c) => colour.get(c) === 0), group.filter((c) => colour.get(c) === 1)];
+      const highlight = { cells: group, candidates: cands(p, sides[0], [d]), others: cands(p, sides[1], [d]) };
+      const named = `${cellList(sides[0])} in one colour and ${cellList(sides[1])} in the other`;
+      for (const side of sides) {
+        const clash = [...combinations(side, 2)].find(([a, b]) => sees(a, b));
+        if (clash)
+          yield step("simple-coloring", {
+            eliminate: side.map((cell) => ({ cell, digit: d })),
+            highlight,
+            why: `Colour ${d}'s pairs: ${named}. One colour holds every ${d} and the other none. ${cellName(clash[0])} and ${cellName(clash[1])} share a colour and see each other, so that colour cannot be ${d}.`,
+          });
+      }
+      const trapped = seeingAll(p, [], d, group).filter(({ cell }) => sides.every((side) => side.some((c) => sees(cell, c))));
+      if (trapped.length)
+        yield step("simple-coloring", {
+          eliminate: trapped,
+          highlight,
+          why: `Colour ${d}'s pairs: ${named}. One colour holds every ${d} and the other none, so a cell that sees both colours cannot be ${d}.`,
+        });
+    }
+  }
+}
+
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 
 // ---- The catalog ------------------------------------------------------------
@@ -438,9 +490,12 @@ export const TECHNIQUES: Technique[] = [
   t("swordfish", "Swordfish", 3, fish(3, "swordfish")),
   t("xyz-wing", "XYZ-Wing", 3, xyzWing),
   t("jellyfish", "Jellyfish", 3, fish(4, "jellyfish")),
+  t("simple-coloring", "Simple Coloring", 4, simpleColoring),
 ];
 
-export const TIERS = ["", "Easy", "Medium", "Hard"];
+export const TIERS = ["", "Easy", "Medium", "Hard", "Advanced"];
+/** The tiers in use, easiest first. */
+export const TIER_LIST = [...new Set(TECHNIQUES.map((t) => t.tier))];
 
 /** The easiest step available, or null when the catalog is stuck. */
 export function nextStep(p: Position): Step | null {

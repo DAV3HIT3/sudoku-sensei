@@ -84,15 +84,18 @@ export function popcount(m: number): number {
 
 /**
  * `state` as a saved board of the puzzle with these givens, or null if it is not
- * one: 81 digits keeping every given, and 81 pencil-mark masks. Guards what the
- * browser sends before it is stored.
+ * one: 81 digits keeping every given, 81 pencil-mark masks, and 81 paint colours
+ * (0-4; missing in boards saved before colouring existed, which means none).
+ * Guards what the browser sends before it is stored.
  */
-export function boardOf(givens: string, state: unknown): { values: string; notes: number[] } | null {
-  const s = state as { values?: unknown; notes?: unknown } | null;
+export function boardOf(givens: string, state: unknown): { values: string; notes: number[]; colors: number[] } | null {
+  const s = state as { values?: unknown; notes?: unknown; colors?: unknown } | null;
   if (typeof s?.values !== "string" || !/^[0-9]{81}$/.test(s.values)) return null;
   const values = s.values;
   if (![...givens].every((g, i) => g === "0" || values[i] === g)) return null;
   if (!Array.isArray(s.notes) || s.notes.length !== 81) return null;
   if (!s.notes.every((n) => Number.isInteger(n) && (n & ~ALL) === 0)) return null;
-  return { values, notes: s.notes as number[] };
+  const colors = s.colors ?? Array(81).fill(0);
+  if (!Array.isArray(colors) || colors.length !== 81 || !colors.every((k) => Number.isInteger(k) && k >= 0 && k <= 4)) return null;
+  return { values, notes: s.notes as number[], colors: colors as number[] };
 }

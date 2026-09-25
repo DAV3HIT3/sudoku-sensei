@@ -2,22 +2,25 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import GridView, { stepMarks, type Mark } from "@/components/GridView";
+import GridView, { PAINT_CLASSES, stepMarks, type Mark, type Pick } from "@/components/GridView";
 import type { HintTaken } from "@/db/schema";
 import type { SavedGame } from "@/lib/games";
-import { box, candidates, col, conflicts, PEERS, row } from "@/lib/sudoku/grid";
+import { erase, paint, PAINTS, place, toggleNote, type Cells } from "@/lib/sudoku/edit";
+import { box, candidates, col, conflicts, row } from "@/lib/sudoku/grid";
 import { applyHint, hint, hintText, type Hint } from "@/lib/sudoku/hint";
 import { load, save } from "./actions";
 
-/** What undo steps through: every value and every pencil mark (bitmask per cell). */
-type Snapshot = { values: number[]; notes: number[] };
+/** What undo steps through: every digit, pencil mark (bitmask per cell) and paint colour. */
+type Snapshot = Cells;
 type History = { past: Snapshot[]; present: Snapshot; future: Snapshot[] };
 
 const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const MOVES: Record<string, [number, number]> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 
-const fresh = (givens: string): Snapshot => ({ values: [...givens].map(Number), notes: Array(81).fill(0) });
-const fromSaved = (g: SavedGame): Snapshot => ({ values: [...g.state.values].map(Number), notes: g.state.notes });
+const fresh = (givens: string): Snapshot => ({ values: [...givens].map(Number), notes: Array(81).fill(0), colors: Array(81).fill(0) });
+const fromSaved = (g: SavedGame): Snapshot =>
+  ({ values: [...g.state.values].map(Number), notes: g.state.notes, colors: g.state.colors ?? Array(81).fill(0) });
+const toState = (b: Snapshot) => ({ values: b.values.join(""), notes: b.notes, colors: b.colors });
 
 export default function Board({ puzzleId, givens, solution, saved }: {
   puzzleId: number; givens: string; solution: string; saved: SavedGame | null;
@@ -28,8 +31,17 @@ export default function Board({ puzzleId, givens, solution, saved }: {
     present: saved ? fromSaved(saved) : fresh(givens),
     future: [],
   }));
-  const [selected, setSelected] = useState(() => given.findIndex((v) => v === 0));
+  // The selected cells, in the order picked; the last is the cursor the arrow keys move.
+  const [selection, setSelection] = useState<number[]>(() => [given.findIndex((v) => v === 0)].filter((c) => c >= 0));
+  const cursor = selection.at(-1) ?? -1;
   const [noteMode, setNoteMode] = useState(false);
+  // Colour mode: the pad picks a digit to focus on instead of entering it, and a palette paints cells.
+  const [colorMode, setColorMode] = useState(false);
+  const [focus, setFocus] = useState(0);
+  const select = useCallback((c: number, how: Pick) => setSelection((s) =>
+    how === "replace" ? [c]
+      : how === "toggle" ? (s.includes(c) ? s.filter((x) => x !== c) : [...s, c])
+      : s.includes(c) ? s : [...s, c]), []);
 
   const { values, notes } = history.present;
   const solved = values.join("") === solution;
@@ -48,7 +60,7 @@ export default function Board({ puzzleId, givens, solution, saved }: {
     if (board === synced.current.board && hints === synced.current.hints) return;
     setStatus("saving");
     const t = setTimeout(() => {
-      save(puzzleId, { values: board.values.join(""), notes: board.notes }, hints)
+      save(puzzleId, toState(board), hints)
         .then((g) => {
           synced.current = { board, hints, updatedAt: g.updatedAt };
           // A newer change still waiting to be saved keeps "Saving…" up.
@@ -66,7 +78,7 @@ export default function Board({ puzzleId, givens, solution, saved }: {
     const pending = () => {
       const { board, hints } = latest.current;
       return board !== synced.current.board || hints !== synced.current.hints
-        ? { state: { values: board.values.join(""), notes: board.notes }, hints }
+        ? { state: toState(board), hints }
         : null;
     };
     const beacon = () => {
@@ -113,38 +125,28 @@ export default function Board({ puzzleId, givens, solution, saved }: {
     };
   }, []);
 
+  // Unchanged boards (the edit functions return the same object) make no undo step.
   const commit = useCallback((next: Snapshot) => {
-    setHistory((h) => ({ past: [...h.past, h.present], present: next, future: [] }));
+    setHistory((h) => (next === h.present ? h : { past: [...h.past, h.present], present: next, future: [] }));
   }, []);
 
-  const input = useCallback(
-    (d: number, asNote: boolean) => {
-      if (solved || selected < 0 || given[selected]) return;
-      const v = [...values], n = [...notes];
-      if (asNote) {
-        if (v[selected]) return;
-        n[selected] ^= 1 << d;
-      } else {
-        v[selected] = v[selected] === d ? 0 : d;
-        n[selected] = 0;
-        // Placing a digit rules it out of every peer's pencil marks.
-        if (v[selected]) for (const p of PEERS[selected]) n[p] &= ~(1 << d);
-      }
-      commit({ values: v, notes: n });
-    },
-    [solved, selected, given, values, notes, commit],
-  );
+  /**
+   * A digit from the pad or keyboard. In colour mode it picks the digit to focus
+   * on. With several cells selected, or in notes mode, it toggles that pencil mark
+   * in all of them; otherwise it places the digit in the one selected cell.
+   */
+  const input = useCallback((d: number, asNote: boolean) => {
+    if (colorMode) { setFocus((f) => (f === d ? 0 : d)); return; }
+    if (solved || !selection.length) return;
+    if (asNote || selection.length > 1) commit(toggleNote(history.present, selection, d));
+    else if (!given[cursor]) commit(place(history.present, cursor, d));
+  }, [colorMode, solved, selection, cursor, given, history.present, commit]);
 
-  const erase = useCallback(() => {
-    if (solved || selected < 0 || given[selected]) return;
-    if (!values[selected] && !notes[selected]) return;
-    const v = [...values], n = [...notes];
-    if (v[selected]) v[selected] = 0;
-    else n[selected] = 0;
-    commit({ values: v, notes: n });
-  }, [solved, selected, given, values, notes, commit]);
+  const clear = useCallback(() => {
+    if (!solved) commit(erase(history.present, selection, given));
+  }, [solved, selection, given, history.present, commit]);
 
-  const fillNotes = () => commit({ values, notes: candidates(values) });
+  const fillNotes = () => commit({ ...history.present, notes: candidates(values) });
   const restart = () => { commit(fresh(givens)); setHints([]); };
 
   // Hints: each press reveals more (1 names the technique, 2 points at the cells,
@@ -164,7 +166,7 @@ export default function Board({ puzzleId, givens, solution, saved }: {
     setShown({ board: history.present, hint: h, level: 1 });
     if (h.kind !== "stuck") setHints((hs) => [...hs, { technique: h.kind === "step" ? h.step.technique : "mistake", level: 1 }]);
   }, [solved, active, history.present, solution]);
-  const applyShown = () => active && commit(applyHint(history.present, active.hint));
+  const applyShown = () => active && commit({ ...history.present, ...applyHint(history.present, active.hint) });
 
   // What the hint draws on the board.
   let hintCells = new Set<number>();
@@ -199,20 +201,24 @@ export default function Board({ puzzleId, givens, solution, saved }: {
       const move = MOVES[e.key];
       if (move) {
         e.preventDefault();
-        // Wraps around the edges.
-        setSelected((s) => ((row(Math.max(s, 0)) + move[0] + 9) % 9) * 9 + (col(Math.max(s, 0)) + move[1] + 9) % 9);
+        // Wraps around the edges. Shift+arrow adds the next cell to the selection.
+        const c = Math.max(cursor, 0);
+        select(((row(c) + move[0] + 9) % 9) * 9 + (col(c) + move[1] + 9) % 9, e.shiftKey ? "add" : "replace");
         return;
       }
-      if (["Backspace", "Delete", "0"].includes(e.key)) { e.preventDefault(); erase(); return; }
+      if (["Backspace", "Delete", "0"].includes(e.key)) { e.preventDefault(); clear(); return; }
       if (e.key === "n") setNoteMode((x) => !x);
+      if (e.key === "c") setColorMode((x) => !x);
       if (e.key === "h") takeHint();
       if (e.key === "Escape") setShown(null);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [input, erase, undo, redo, noteMode, takeHint]);
+  }, [input, clear, undo, redo, noteMode, takeHint, cursor, select]);
 
-  const selDigit = selected >= 0 ? values[selected] : 0;
+  // The digit to emphasise: the colour-mode focus, else the digit in the one selected cell.
+  const selDigit = colorMode && focus ? focus : selection.length === 1 ? values[cursor] : 0;
+  const single = selection.length === 1 ? cursor : -1;
 
   return (
     <div className="flex w-full max-w-[540px] flex-col gap-4">
@@ -224,12 +230,14 @@ export default function Board({ puzzleId, givens, solution, saved }: {
         notes={cellNotes}
         marks={marks}
         selectedDigit={selDigit}
-        onSelect={setSelected}
+        onSelect={select}
         look={(c) => ({
-          tone: c === selected ? "selected"
-            : hintCells.has(c) ? "hint"
-            : selDigit !== 0 && values[c] === selDigit ? "same"
-            : selected >= 0 && (row(c) === row(selected) || col(c) === col(selected) || box(c) === box(selected)) ? "related"
+          selected: selection.includes(c),
+          paint: history.present.colors[c],
+          tone: hintCells.has(c) ? "hint"
+            // In colour mode the focus digit lights every cell it is in or could still go in.
+            : selDigit !== 0 && (values[c] === selDigit || (colorMode && cellNotes(c) & (1 << selDigit))) ? "same"
+            : single >= 0 && (row(c) === row(single) || col(c) === col(single) || box(c) === box(single)) ? "related"
             : undefined,
           error: bad.has(c),
           given: given[c] !== 0,
@@ -268,28 +276,48 @@ export default function Board({ puzzleId, givens, solution, saved }: {
                   key={d}
                   type="button"
                   onClick={() => input(d, noteMode)}
-                  aria-label={done ? `${d}, all nine placed` : String(d)}
-                  className={`aspect-square rounded bg-zinc-100 text-2xl hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 ${done ? "relative text-zinc-400 after:absolute after:inset-x-[18%] after:top-1/2 after:h-0.5 after:rotate-45 after:bg-red-600 dark:text-zinc-600 dark:after:bg-red-500" : ""}`}
+                  aria-label={colorMode ? `Focus on ${d}` : done ? `${d}, all nine placed` : String(d)}
+                  aria-pressed={colorMode ? focus === d : undefined}
+                  className={`aspect-square rounded text-2xl ${colorMode && focus === d ? "bg-sky-600 text-white" : "bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700"} ${done && !colorMode ? "relative text-zinc-400 after:absolute after:inset-x-[18%] after:top-1/2 after:h-0.5 after:rotate-45 after:bg-red-600 dark:text-zinc-600 dark:after:bg-red-500" : ""}`}
                 >
                   {d}
                 </button>
               );
             })}
           </div>
-          <div className="grid grid-cols-3 gap-2 text-sm sm:grid-cols-6">
+          {colorMode && (
+            <div className="flex flex-col gap-2 rounded border border-zinc-200 p-2 text-sm dark:border-zinc-800">
+              <p className="text-xs text-zinc-500">Tap a digit to see where it can go. Select cells, then a colour to paint them; the same colour again clears it.</p>
+              <div className="flex items-center gap-2">
+                {Array.from({ length: PAINTS }, (_, i) => i + 1).map((k) => (
+                  <button key={k} type="button" onClick={() => commit(paint(history.present, selection, k))}
+                    aria-label={`Paint colour ${k}`}
+                    className={`h-10 flex-1 rounded border border-zinc-300 dark:border-zinc-700 ${PAINT_CLASSES[k]}`} />
+                ))}
+                <button type="button" onClick={() => commit(paint(history.present, selection, 0))} className="h-10 rounded bg-zinc-100 px-3 dark:bg-zinc-800">Clear</button>
+                <button type="button" onClick={() => commit(paint(history.present, [...Array(81).keys()], 0))} className="h-10 rounded bg-zinc-100 px-3 dark:bg-zinc-800">Clear all</button>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-4 gap-2 text-sm">
             <button type="button" onClick={() => setNoteMode((x) => !x)} aria-pressed={noteMode}
               className={`rounded px-2 py-2 ${noteMode ? "bg-sky-600 text-white" : "bg-zinc-100 dark:bg-zinc-800"}`}>
               Notes
             </button>
+            <button type="button" onClick={() => setColorMode((x) => !x)} aria-pressed={colorMode}
+              className={`rounded px-2 py-2 ${colorMode ? "bg-sky-600 text-white" : "bg-zinc-100 dark:bg-zinc-800"}`}>
+              Colour
+            </button>
             <button type="button" onClick={fillNotes} className="rounded bg-zinc-100 px-2 py-2 dark:bg-zinc-800">Fill notes</button>
-            <button type="button" onClick={erase} className="rounded bg-zinc-100 px-2 py-2 dark:bg-zinc-800">Erase</button>
+            <button type="button" onClick={clear} className="rounded bg-zinc-100 px-2 py-2 dark:bg-zinc-800">Erase</button>
             <button type="button" onClick={undo} disabled={!history.past.length} className="rounded bg-zinc-100 px-2 py-2 disabled:opacity-40 dark:bg-zinc-800">Undo</button>
             <button type="button" onClick={redo} disabled={!history.future.length} className="rounded bg-zinc-100 px-2 py-2 disabled:opacity-40 dark:bg-zinc-800">Redo</button>
-            <button type="button" onClick={takeHint} className="rounded bg-amber-200 px-2 py-2 dark:bg-amber-800">Hint</button>
+            <button type="button" onClick={takeHint} className="col-span-2 rounded bg-amber-200 px-2 py-2 dark:bg-amber-800">Hint</button>
           </div>
           <div className="flex items-baseline justify-between gap-4 text-xs text-zinc-500">
             <p className="hidden sm:block">
-              Keys: 1–9 to place, Shift+1–9 or N for notes, arrows to move, Backspace to erase, Ctrl/⌘+Z to undo, H for a hint.
+              Drag or ⌘/Shift-click to select several cells; a digit then toggles that note in all of them.
+              Keys: 1–9 to place, Shift+1–9 or N for notes, Shift+arrows to extend, C for colour, Backspace to erase, ⌘Z to undo, H for a hint.
             </p>
             <button type="button" onClick={restart} className="ml-auto shrink-0 hover:underline">Restart</button>
           </div>

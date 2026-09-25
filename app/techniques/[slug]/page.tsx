@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import Prose from "@/components/Prose";
 import PuzzleLinks from "@/components/PuzzleLinks";
 import { gameStatuses } from "@/lib/games";
 import { drillStats, lessonStage } from "@/lib/progress";
@@ -29,9 +30,7 @@ export default async function Technique({ params }: PageProps<"/techniques/[slug
         <h1 className="text-3xl font-semibold tracking-tight">{t.name}</h1>
         <p className="text-sm text-zinc-500">{TIERS[t.tier]}</p>
       </header>
-      <div className="flex flex-col gap-3 leading-relaxed">
-        {t.body.split("\n\n").map((p, i) => <p key={i}>{p}</p>)}
-      </div>
+      <Prose text={t.body} />
 
       {examples.length > 0 && (
         <section id="lesson" className="flex scroll-mt-4 flex-col gap-3">
@@ -40,8 +39,9 @@ export default async function Technique({ params }: PageProps<"/techniques/[slug
             {lesson.done && <span className="text-sm font-normal text-emerald-700 dark:text-emerald-400">Finished</span>}
           </h2>
           <p className="text-sm text-zinc-500">
-            Key candidates are in <span className="rounded bg-amber-300 px-1 text-amber-950">amber</span>, removals are{" "}
-            <span className="font-bold text-red-600 line-through">struck out</span>.
+            Key candidates are in <span className="rounded bg-amber-300 px-1 text-amber-950">amber</span>
+            {t.tier >= 4 && <>, the other colour in <span className="rounded bg-violet-300 px-1 text-violet-950">violet</span></>}
+            , removals are <span className="font-bold text-red-600 line-through">struck out</span>.
           </p>
           <Lesson slug={slug} name={t.name} examples={examples} initialStage={lesson.stage} />
         </section>
