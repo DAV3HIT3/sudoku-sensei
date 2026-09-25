@@ -63,8 +63,11 @@ const today = new Date().toISOString().slice(0, 10);
 let tried = 0, added = 0;
 while (Date.now() < deadline && [...count.values()].some((n) => n < per)) {
   tried++;
-  // Mostly minimal puzzles, which run harder; some stopped early, which run easier.
-  const puzzle = carve(randomSolution(), Math.random() < 0.7 ? 17 : 26 + Math.floor(Math.random() * 10));
+  // Mostly minimal puzzles, which run harder; some stopped early, which run easier;
+  // a few nearly complete, the only way to get puzzles that need nothing past a Full House.
+  const roll = Math.random();
+  const floor = roll < 0.6 ? 17 : roll < 0.9 ? 26 + Math.floor(Math.random() * 10) : 50 + Math.floor(Math.random() * 26);
+  const puzzle = carve(randomSolution(), floor);
   const key = format(puzzle);
   if (have.has(key)) continue;
   const r = grade(puzzle);

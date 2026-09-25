@@ -53,6 +53,8 @@ services:
       # itself. A deployment with any other way in must leave this unset.
       TRUST_TAILSCALE_HEADERS: "true"
       PORT: 3000
+      # When the daily puzzle changes: midnight here.
+      TZ: America/Denver
       # Next's standalone server binds HOSTNAME, which Docker sets to the container name.
       HOSTNAME: 0.0.0.0
 

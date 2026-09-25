@@ -111,9 +111,9 @@ describe("grading", () => {
   test("Inkala's puzzle is beyond the catalog", () => {
     expect(grade(parse("800000000003600000070090200050007000000045700000100030001000068008500010090000400")).solved).toBe(false);
   });
-  test("the corpus exercises every technique", () => {
-    const used = new Set(corpus.flatMap((g) => grade(parse(g)).techniques));
-    expect(TECHNIQUES.map((t) => t.slug).filter((t) => !used.has(t))).toEqual([]);
+  test("every technique is the hardest step of at least one puzzle, so each has puzzles to practise", () => {
+    const hardest = new Set(corpus.map((g) => grade(parse(g))).filter((r) => r.solved).map((r) => TECHNIQUES[r.difficulty].slug));
+    expect(TECHNIQUES.map((t) => t.slug).filter((t) => !hardest.has(t))).toEqual([]);
   });
   test("every step on every corpus puzzle agrees with its solution", () => {
     for (const givens of corpus) {

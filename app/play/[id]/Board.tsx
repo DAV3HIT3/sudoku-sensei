@@ -59,9 +59,9 @@ export default function Board({ puzzleId, givens, solution, saved }: {
     return () => clearTimeout(t);
   }, [history.present, hints, puzzleId]);
 
-  // Leaving with a save still waiting: send it now. A link inside the app unmounts
-  // the board; closing the tab, reloading or switching apps on a phone does not,
-  // and there only a beacon is sure to get out as the page goes.
+  // Leaving with a save still waiting: send it now, as a beacon, which the browser
+  // delivers even as the page goes. A link inside the app unmounts the board;
+  // closing the tab, reloading or switching apps on a phone hides the page.
   useEffect(() => {
     const pending = () => {
       const { board, hints } = latest.current;
@@ -79,29 +79,39 @@ export default function Board({ puzzleId, givens, solution, saved }: {
     return () => {
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("pagehide", beacon);
-      const p = pending();
-      if (p) save(puzzleId, p.state, p.hints).catch(() => {});
+      // A beacon here too: a server action started now waits behind the page
+      // change, so coming straight back could load the board before it lands.
+      beacon();
     };
   }, [puzzleId]);
 
-  // Coming back to this tab: pick up moves made on another device since.
+  // Pick up moves saved elsewhere since this board was loaded: from another
+  // device when this tab comes back into view, and once shortly after opening, in
+  // case a save sent as the last page closed (a reload straight after a move)
+  // landed just after this one was read.
+  const refresh = useRef(async () => {});
+  useEffect(() => { refresh.current = async () => {
+    if (document.visibilityState !== "visible" || status !== "saved") return;
+    const g = await load(puzzleId).catch(() => null);
+    if (!g || g.updatedAt <= synced.current.updatedAt) return;
+    // A move made while that request was out wins over what the server had.
+    if (latest.current.board !== synced.current.board || latest.current.hints !== synced.current.hints) return;
+    const board = fromSaved(g);
+    synced.current = { board, hints: g.hints, updatedAt: g.updatedAt };
+    setHistory({ past: [], present: board, future: [] });
+    setHints(g.hints);
+  }; });
   useEffect(() => {
-    async function refresh() {
-      if (document.visibilityState !== "visible" || status !== "saved") return;
-      const g = await load(puzzleId).catch(() => null);
-      if (!g || g.updatedAt <= synced.current.updatedAt) return;
-      const board = fromSaved(g);
-      synced.current = { board, hints: g.hints, updatedAt: g.updatedAt };
-      setHistory({ past: [], present: board, future: [] });
-      setHints(g.hints);
-    }
-    document.addEventListener("visibilitychange", refresh);
-    window.addEventListener("focus", refresh);
+    const onShow = () => refresh.current();
+    const once = setTimeout(onShow, 1500);
+    document.addEventListener("visibilitychange", onShow);
+    window.addEventListener("focus", onShow);
     return () => {
-      document.removeEventListener("visibilitychange", refresh);
-      window.removeEventListener("focus", refresh);
+      clearTimeout(once);
+      document.removeEventListener("visibilitychange", onShow);
+      window.removeEventListener("focus", onShow);
     };
-  }, [puzzleId, status]);
+  }, []);
 
   const commit = useCallback((next: Snapshot) => {
     setHistory((h) => ({ past: [...h.past, h.present], present: next, future: [] }));
