@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { TIERS } from "@/lib/sudoku/solver";
 import { listTechniques } from "@/lib/techniques";
 
 export default async function Techniques() {
+  await connection(); // read from the database per request, not frozen at build time
   const all = await listTechniques();
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-6">
