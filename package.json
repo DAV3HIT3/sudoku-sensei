@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate": "node scripts/generate.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.3",
@@ -26,5 +27,6 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.2"
-  }
+  },
+  "type": "module"
 }

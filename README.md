@@ -15,8 +15,15 @@ npm install
 npm run dev                  # http://localhost:3000
 ```
 
-`npm test` runs the engine tests (`lib/sudoku`). The app applies its migrations
-(`db/migrations`) on start-up, then loads any new puzzle in `content/puzzles.txt`. After changing
+`npm test` runs the engine tests (`lib/sudoku`): a hand-built position for each
+technique, and every solver step on every puzzle in `content/puzzles.txt` checked
+against its solution. The app applies its migrations (`db/migrations`) on start-up,
+then copies the technique catalog, grades every puzzle in `content/puzzles.txt`,
+and stores each one's drills.
+
+`npm run generate -- --per 12 --minutes 5` adds generated puzzles to
+`content/puzzles.txt` until each technique is the hardest step of 12 of them, or
+time runs out. Commit the result. After changing
 `db/schema.ts`, run `npm run db:generate` and commit the new migration.
 
 Players are identified by the `Tailscale-User-Login` header, which the sidecar adds

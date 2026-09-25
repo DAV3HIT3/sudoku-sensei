@@ -56,8 +56,10 @@ it; its tags are every technique it needed. A puzzle the catalog cannot solve is
 rejected.
 
 Generation is an offline script (`scripts/generate.ts`), not a request-time job:
-fill a random grid by backtracking, remove givens while the solution stays unique,
-grade, and store. While grading it records **drills**: the position just before a
+fill a random grid, remove givens while the solution stays unique, grade, and
+append to `content/puzzles.txt`, aiming for a set number of puzzles per hardest
+technique. The app regrades every puzzle on start-up (about 1 ms each), so a
+change to the engine reaches the stored grades with the next deploy. While grading it records **drills**: the position just before a
 technique is first needed, with the step expected. A drill asks "find the X-Wing
 here", which is how a technique actually gets learned.
 
@@ -185,11 +187,14 @@ check. A handful of puzzles in the `puzzles` table, loaded from
 `content/puzzles.txt` on start-up and checked for a unique solution.
 *Done when* a puzzle can be played to the end on a phone and a laptop.
 
-**M2: The engine, tiers 1–3.** Candidate model, the solver techniques above, the
+**M2: The engine, tiers 1–3 (done).** Candidate model, the solver techniques above, the
 grader, the generator script, drill capture. Fixtures per technique. Fill `puzzles`
 and `drills` with a first batch across difficulties.
 *Done when* every stored puzzle grades, and the grader agrees with known ratings on
-a set of reference puzzles.
+a set of reference puzzles. Result: 204 puzzles, 203 within the catalog. Every step
+on each one is checked against its solution, and every technique is used somewhere.
+Hidden Quad and Jellyfish are rarely the hardest step (1 and 2 puzzles), and Full
+House never is, since a Naked Single always comes first.
 
 **Saved games (done, ahead of M3).** One game per player per puzzle in `games`,
 saved a moment after each move and resumed on any device. A tab picks up moves
