@@ -1,4 +1,4 @@
-import { integer, pgTable, primaryKey, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { char, integer, pgTable, primaryKey, serial, text, timestamp } from "drizzle-orm/pg-core";
 
 /**
  * A player. Holds nothing about how they sign in: that is `identities`, so a
@@ -26,3 +26,13 @@ export const identities = pgTable(
   },
   (t) => [primaryKey({ columns: [t.provider, t.subject] })],
 );
+
+/** Puzzles to play. Seeded from content/puzzles.txt on start-up (lib/puzzles.ts). */
+export const puzzles = pgTable("puzzles", {
+  id: serial("id").primaryKey(),
+  /** 81 digits, row by row, 0 for empty. */
+  givens: char("givens", { length: 81 }).notNull().unique(),
+  solution: char("solution", { length: 81 }).notNull(),
+  source: text("source").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
