@@ -1,0 +1,67 @@
+# Runs on monster against the house Postgres. From ~/proj/sudoku-sensei there:
+#
+#   Deploy:    git pull --ff-only && SENSEI_TAG=$(git rev-parse --short HEAD) \
+#                docker compose -f deploy/compose.yml up -d --build
+#   Roll back: SENSEI_TAG=<older-sha> docker compose -f deploy/compose.yml up -d
+#
+# deploy/.env (mode 600, not in git) holds DATABASE_URL, the postgres:5432 form
+# add-app.sh printed, and TS_AUTHKEY for the sidecar's first join (optional: without
+# it the sidecar logs a login URL instead).
+
+name: sudoku-sensei
+
+services:
+  # The app's node on the tailnet and the TLS in front of it. It is also the only
+  # way in: no host port is published, so every request carries the Tailscale
+  # identity headers the app uses to know who is playing.
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: sudoku-sensei-tailscale
+    # No `hostname: sudoku-sensei`: it would resolve to this container, and
+    # serve.json's proxy to sudoku-sensei:3000 would dial itself.
+    restart: unless-stopped
+    environment:
+      TS_HOSTNAME: sudoku-sensei
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
+      # MagicDNS inside the container breaks outbound DNS and certificate issuance
+      # (see realbudget's compose file).
+      TS_ACCEPT_DNS: "false"
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      # The directory, not the file: a single-file bind pins the old contents.
+      - ./tailscale:/config:ro
+    networks: [home-db]
+
+  # Its own network namespace, reached by the sidecar over home-db, so a sidecar
+  # restart does not strand it (monster README, Tailscale).
+  sudoku-sensei:
+    container_name: sudoku-sensei
+    image: sudoku-sensei:${SENSEI_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      tags:
+        - sudoku-sensei:latest
+    restart: unless-stopped
+    networks: [home-db]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in deploy/.env}
+      # Safe only because the sidecar is the sole way in and sets these headers
+      # itself. A deployment with any other way in must leave this unset.
+      TRUST_TAILSCALE_HEADERS: "true"
+      PORT: 3000
+      # Next's standalone server binds HOSTNAME, which Docker sets to the container name.
+      HOSTNAME: 0.0.0.0
+
+volumes:
+  # The node's identity. Losing it registers a second node and leaves the name
+  # held by a dead one.
+  tailscale-state:
+
+networks:
+  # Created by home-db, which therefore has to be up first.
+  home-db:
+    external: true
+    name: home-db
