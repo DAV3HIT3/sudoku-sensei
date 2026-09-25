@@ -11,7 +11,6 @@ ENV NODE_ENV=production
 RUN addgroup -g 1001 -S nodejs && adduser -u 1001 -S nextjs -G nodejs
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=build --chown=nextjs:nodejs /app/public ./public
 # Applied by instrumentation.ts on start-up; the standalone output leaves them out.
 COPY --from=build --chown=nextjs:nodejs /app/db/migrations ./db/migrations
 USER nextjs
