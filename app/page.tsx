@@ -23,17 +23,16 @@ export default async function Home() {
   };
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Sudoku Sensei</h1>
-          <p className="text-lg text-zinc-600 dark:text-zinc-400">
-            {user ? `Welcome, ${user.displayName}.` : "Open this through the tailnet to play."}
-          </p>
-        </div>
-        <nav className="mt-3 flex gap-3 text-sm text-zinc-500">
+      <header className="flex flex-col gap-1">
+        <nav className="flex justify-end gap-4 text-sm text-zinc-500">
           <Link href="/progress" className="hover:underline">Progress</Link>
           <Link href="/techniques" className="hover:underline">Techniques</Link>
+          <Link href="/settings" className="hover:underline">Settings</Link>
         </nav>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Sudoku Sensei</h1>
+        <p className="text-lg text-zinc-600 dark:text-zinc-400">
+          {user ? `Welcome, ${user.displayName}.` : "Open this through the tailnet to play."}
+        </p>
       </header>
       {plan && (
         <NextCard

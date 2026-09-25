@@ -1,8 +1,11 @@
 # Runs on monster against the house Postgres. From ~/proj/sudoku-sensei there:
 #
-#   Deploy:    git pull --ff-only && export SENSEI_TAG=$(git rev-parse --short HEAD) &&
+#   Deploy:    git pull --ff-only && export SENSEI_TAG=$(git rev-parse --short HEAD) \
+#                RELEASE_DATE=$(git log -1 --format=%cI) &&
 #                docker compose -f deploy/compose.yml build sudoku-sensei &&
 #                docker compose -f deploy/compose.yml up -d sudoku-sensei
+#
+# Monster is production and runs main only.
 #   Roll back: SENSEI_TAG=<older-sha> docker compose -f deploy/compose.yml up -d
 #
 # deploy/.env (mode 600, not in git) holds DATABASE_URL, the postgres:5432 form
@@ -43,6 +46,10 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+      args:
+        # The commit and its date, shown on /settings.
+        APP_BUILD: ${SENSEI_TAG:-dev}
+        RELEASE_DATE: ${RELEASE_DATE:-}
       tags:
         - sudoku-sensei:latest
     restart: unless-stopped

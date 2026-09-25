@@ -43,3 +43,11 @@ async function userFor(provider: string, subject: string, displayName: string): 
     return user;
   });
 }
+
+/** The ways this user signs in, oldest first. */
+export const identitiesOf = (userId: number) =>
+  getDb()
+    .select({ provider: identities.provider, subject: identities.subject, createdAt: identities.createdAt })
+    .from(identities)
+    .where(eq(identities.userId, userId))
+    .orderBy(identities.createdAt);

@@ -45,9 +45,14 @@ because every request comes through the sidecar. Monster is production and runs
 (`npm run check`, then the dev server), merge it, and deploy `main`:
 
 ```bash
-ssh monster 'cd ~/proj/sudoku-sensei && git pull --ff-only && export SENSEI_TAG=$(git rev-parse --short HEAD) && \
+ssh monster 'cd ~/proj/sudoku-sensei && git pull --ff-only && \
+  export SENSEI_TAG=$(git rev-parse --short HEAD) RELEASE_DATE=$(git log -1 --format=%cI) && \
   docker compose -f deploy/compose.yml build sudoku-sensei && docker compose -f deploy/compose.yml up -d sudoku-sensei'
 ```
+
+The version on `/settings` is `package.json`'s: bump it with each milestone
+(`npm version <x.y.z> --no-git-tag-version`). The build (commit) and release date
+(its commit date) are baked into the image, so a rolled-back image reports itself.
 
 Building first keeps the old container serving until the new image is ready, so
 the site is down only while the container restarts (a few seconds, including
