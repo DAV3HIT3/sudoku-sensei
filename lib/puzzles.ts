@@ -15,10 +15,17 @@ import { grade, TECHNIQUES } from "@/lib/sudoku/solver";
 // ponytail: regrades every puzzle on every start (about a second for a few hundred); stamp an engine version if it gets slow.
 export async function seedPuzzles(): Promise<void> {
   const db = getDb();
+  const rows = await Promise.all(TECHNIQUES.map(async (t, sort) => {
+    const body = writeUp(await readFile(path.join(process.cwd(), "content", "techniques", `${t.slug}.md`), "utf8"));
+    return { slug: t.slug, name: t.name, tier: t.tier, sort, summary: body.split("\n\n")[0], body };
+  }));
   await db
     .insert(techniques)
-    .values(TECHNIQUES.map((t, sort) => ({ slug: t.slug, name: t.name, tier: t.tier, sort })))
-    .onConflictDoUpdate({ target: techniques.slug, set: { name: sql`excluded.name`, tier: sql`excluded.tier`, sort: sql`excluded.sort` } });
+    .values(rows)
+    .onConflictDoUpdate({
+      target: techniques.slug,
+      set: { name: sql`excluded.name`, tier: sql`excluded.tier`, sort: sql`excluded.sort`, summary: sql`excluded.summary`, body: sql`excluded.body` },
+    });
 
   const text = await readFile(path.join(process.cwd(), "content", "puzzles.txt"), "utf8");
   const graded = [];
@@ -62,6 +69,9 @@ export async function seedPuzzles(): Promise<void> {
   // Drills for techniques a regrade no longer uses.
   await db.execute(sql`delete from drills d using puzzles p where d.puzzle_id = p.id and not (d.technique = any(p.techniques))`);
 }
+
+/** A technique's write-up without its "# Name" heading (the name comes from the engine). */
+export const writeUp = (md: string) => md.replace(/^# .*\n+/, "").trim();
 
 function chunks<T>(xs: T[], n: number): T[][] {
   const out: T[][] = [];

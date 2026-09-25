@@ -128,3 +128,11 @@ describe("grading", () => {
     }
   });
 });
+
+test("every technique has a write-up headed with its name", () => {
+  for (const t of TECHNIQUES) {
+    const md = readFileSync(new URL(`../../content/techniques/${t.slug}.md`, import.meta.url), "utf8");
+    expect(md.split("\n")[0]).toBe(`# ${t.name}`);
+    expect(md.length).toBeGreaterThan(100);
+  }
+});

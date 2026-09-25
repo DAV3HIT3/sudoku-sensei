@@ -1,4 +1,5 @@
 import Link from "next/link";
+import InfoLink from "@/components/InfoLink";
 import { notFound } from "next/navigation";
 import { getGame } from "@/lib/games";
 import { getPuzzle } from "@/lib/puzzles";
@@ -12,13 +13,15 @@ export default async function Play({ params }: PageProps<"/play/[id]">) {
   if (!puzzle) notFound();
   const user = await currentUser();
   const saved = user ? await getGame(user.id, puzzle.id) : null;
+  const hardest = puzzle.difficulty === null ? null : TECHNIQUES[puzzle.difficulty];
   return (
     <main className="flex flex-1 flex-col items-center gap-4 p-4">
-      <header className="flex w-full max-w-[540px] items-baseline justify-between">
+      <header className="flex w-full max-w-[540px] items-center gap-3">
         <Link href="/" className="text-sm text-zinc-500 hover:underline">← Puzzles</Link>
-        <span className="text-sm text-zinc-500" title={puzzle.source}>
-          Puzzle {puzzle.id} · {puzzle.difficulty === null ? "beyond the lessons" : `needs ${TECHNIQUES[puzzle.difficulty].name}`}
+        <span className="ml-auto text-sm text-zinc-500" title={puzzle.source}>
+          Puzzle {puzzle.id} · {hardest ? `needs ${hardest.name}` : "beyond the lessons"}
         </span>
+        <InfoLink href={hardest ? `/techniques/${hardest.slug}` : "/techniques"} label={hardest ? `About ${hardest.name}` : "About the techniques"} />
       </header>
       <Board key={saved?.updatedAt} puzzleId={puzzle.id} givens={puzzle.givens} solution={puzzle.solution} saved={saved} />
     </main>
