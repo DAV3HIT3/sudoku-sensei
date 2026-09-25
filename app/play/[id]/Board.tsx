@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { SavedGame } from "@/lib/games";
 import { box, candidates, col, conflicts, PEERS, row } from "@/lib/sudoku/grid";
+import { load, save } from "./actions";
 
 /** What undo steps through: every value and every pencil mark (bitmask per cell). */
 type Snapshot = { values: number[]; notes: number[] };
@@ -10,11 +12,16 @@ type History = { past: Snapshot[]; present: Snapshot; future: Snapshot[] };
 const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const MOVES: Record<string, [number, number]> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 
-export default function Board({ givens, solution }: { givens: string; solution: string }) {
+const fresh = (givens: string): Snapshot => ({ values: [...givens].map(Number), notes: Array(81).fill(0) });
+const fromSaved = (g: SavedGame): Snapshot => ({ values: [...g.state.values].map(Number), notes: g.state.notes });
+
+export default function Board({ puzzleId, givens, solution, saved }: {
+  puzzleId: number; givens: string; solution: string; saved: SavedGame | null;
+}) {
   const given = [...givens].map(Number);
   const [history, setHistory] = useState<History>(() => ({
     past: [],
-    present: { values: given, notes: Array(81).fill(0) },
+    present: saved ? fromSaved(saved) : fresh(givens),
     future: [],
   }));
   const [selected, setSelected] = useState(() => given.findIndex((v) => v === 0));
@@ -23,6 +30,47 @@ export default function Board({ givens, solution }: { givens: string; solution: 
   const { values, notes } = history.present;
   const solved = values.join("") === solution;
   const bad = conflicts(values);
+  const placed = (d: number) => values.filter((v) => v === d).length;
+
+  // Saving: every change is sent a moment after it is made, so the game resumes
+  // on any device. `synced` is the board as the server last had it.
+  const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
+  const synced = useRef({ board: history.present, updatedAt: saved?.updatedAt ?? 0 });
+  const latest = useRef(history.present);
+  useEffect(() => { latest.current = history.present; });
+  useEffect(() => {
+    const board = history.present;
+    if (board === synced.current.board) return;
+    setStatus("saving");
+    const t = setTimeout(() => {
+      save(puzzleId, { values: board.values.join(""), notes: board.notes })
+        .then((g) => {
+          synced.current = { board, updatedAt: g.updatedAt };
+          // A newer change still waiting to be saved keeps "Saving…" up.
+          if (latest.current === board) setStatus("saved");
+        })
+        .catch(() => setStatus("error"));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [history.present, puzzleId]);
+
+  // Coming back to this tab: pick up moves made on another device since.
+  useEffect(() => {
+    async function refresh() {
+      if (document.visibilityState !== "visible" || status !== "saved") return;
+      const g = await load(puzzleId).catch(() => null);
+      if (!g || g.updatedAt <= synced.current.updatedAt) return;
+      const board = fromSaved(g);
+      synced.current = { board, updatedAt: g.updatedAt };
+      setHistory({ past: [], present: board, future: [] });
+    }
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [puzzleId, status]);
 
   const commit = useCallback((next: Snapshot) => {
     setHistory((h) => ({ past: [...h.past, h.present], present: next, future: [] }));
@@ -56,6 +104,7 @@ export default function Board({ givens, solution }: { givens: string; solution: 
   }, [solved, selected, given, values, notes, commit]);
 
   const fillNotes = () => commit({ values, notes: candidates(values) });
+  const restart = () => commit(fresh(givens));
 
   const undo = useCallback(() => setHistory((h) =>
     h.past.length ? { past: h.past.slice(0, -1), present: h.past.at(-1)!, future: [h.present, ...h.future] } : h), []);
@@ -89,6 +138,9 @@ export default function Board({ givens, solution }: { givens: string; solution: 
 
   return (
     <div className="flex w-full max-w-[540px] flex-col gap-4">
+      <p aria-live="polite" className={`-mt-2 h-4 text-right text-xs ${status === "error" ? "text-red-600" : "text-zinc-500"}`}>
+        {status === "saving" ? "Saving…" : status === "error" ? "Not saved: your last moves are only on this device." : ""}
+      </p>
       <div
         role="grid"
         aria-label="Sudoku board"
@@ -133,20 +185,27 @@ export default function Board({ givens, solution }: { givens: string; solution: 
       </div>
 
       {solved ? (
-        <p role="status" className="text-center text-xl font-semibold text-emerald-700 dark:text-emerald-400">Solved.</p>
+        <div className="flex items-center justify-center gap-4">
+          <p role="status" className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">Solved.</p>
+          <button type="button" onClick={restart} className="rounded bg-zinc-100 px-3 py-2 text-sm dark:bg-zinc-800">Play again</button>
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-9 gap-1">
-            {DIGITS.map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => input(d, noteMode)}
-                className="aspect-square rounded bg-zinc-100 text-2xl hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-              >
-                {d}
-              </button>
-            ))}
+            {DIGITS.map((d) => {
+              const done = placed(d) >= 9;
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => input(d, noteMode)}
+                  aria-label={done ? `${d}, all nine placed` : String(d)}
+                  className={`aspect-square rounded bg-zinc-100 text-2xl hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 ${done ? "relative text-zinc-400 after:absolute after:inset-x-[18%] after:top-1/2 after:h-0.5 after:-rotate-45 after:bg-zinc-400 dark:text-zinc-600 dark:after:bg-zinc-600" : ""}`}
+                >
+                  {d}
+                </button>
+              );
+            })}
           </div>
           <div className="grid grid-cols-5 gap-2 text-sm">
             <button type="button" onClick={() => setNoteMode((x) => !x)} aria-pressed={noteMode}
@@ -158,9 +217,12 @@ export default function Board({ givens, solution }: { givens: string; solution: 
             <button type="button" onClick={undo} disabled={!history.past.length} className="rounded bg-zinc-100 px-2 py-2 disabled:opacity-40 dark:bg-zinc-800">Undo</button>
             <button type="button" onClick={redo} disabled={!history.future.length} className="rounded bg-zinc-100 px-2 py-2 disabled:opacity-40 dark:bg-zinc-800">Redo</button>
           </div>
-          <p className="hidden text-xs text-zinc-500 sm:block">
-            Keys: 1–9 to place, Shift+1–9 or N for notes, arrows to move, Backspace to erase, Ctrl/⌘+Z to undo.
-          </p>
+          <div className="flex items-baseline justify-between gap-4 text-xs text-zinc-500">
+            <p className="hidden sm:block">
+              Keys: 1–9 to place, Shift+1–9 or N for notes, arrows to move, Backspace to erase, Ctrl/⌘+Z to undo.
+            </p>
+            <button type="button" onClick={restart} className="ml-auto shrink-0 hover:underline">Restart</button>
+          </div>
         </>
       )}
     </div>

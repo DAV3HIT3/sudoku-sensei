@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { gameStatuses } from "@/lib/games";
 import { listPuzzles } from "@/lib/puzzles";
 import { currentUser } from "@/lib/user";
 
 export default async function Home() {
   const user = await currentUser();
   const puzzles = await listPuzzles();
+  const status = user ? await gameStatuses(user.id) : new Map();
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 p-6">
       <header>
@@ -18,7 +20,10 @@ export default async function Home() {
           <li key={p.id}>
             <Link href={`/play/${p.id}`} className="flex justify-between py-3 hover:underline">
               <span>{p.source}</span>
-              <span className="text-zinc-500">{p.givens.replace(/0/g, "").length} givens</span>
+              <span className="text-zinc-500">
+                {status.get(p.id) === "solved" ? "Solved · " : status.get(p.id) === "playing" ? "In progress · " : ""}
+                {p.givens.replace(/0/g, "").length} givens
+              </span>
             </Link>
           </li>
         ))}

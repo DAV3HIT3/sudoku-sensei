@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { candidates, conflicts, format, parse, PEERS, solve } from "./grid";
+import { boardOf, candidates, conflicts, format, parse, PEERS, solve } from "./grid";
 
 const EASY = "003020600900305001001806400008102900700000008006708200002609500800203009005010300";
 const EASY_SOLUTION = "483921657967345821251876493548132976729564138136798245372689514814253769695417382";
@@ -27,4 +27,16 @@ test("conflicts and candidates", () => {
   const c = candidates(parse(EASY));
   expect(c[0]).toBe((1 << 4) | (1 << 5)); // r1c1: 4 or 5
   expect(c[2]).toBe(0); // filled
+});
+
+test("boardOf accepts a board of the puzzle and nothing else", () => {
+  const notes = Array(81).fill(0);
+  const played = "4" + EASY.slice(1);
+  expect(boardOf(EASY, { values: played, notes, extra: 1 })).toEqual({ values: played, notes });
+  expect(boardOf(EASY, { values: "1" + EASY.slice(1).replace("3", "9"), notes })).toBeNull(); // changes a given
+  expect(boardOf(EASY, { values: EASY.slice(1), notes })).toBeNull(); // 80 cells
+  expect(boardOf(EASY, { values: EASY, notes: notes.slice(1) })).toBeNull();
+  expect(boardOf(EASY, { values: EASY, notes: [1, ...notes.slice(1)] })).toBeNull(); // bit 0 is not a digit
+  expect(boardOf(EASY, { values: EASY, notes: [0.5, ...notes.slice(1)] })).toBeNull();
+  expect(boardOf(EASY, null)).toBeNull();
 });

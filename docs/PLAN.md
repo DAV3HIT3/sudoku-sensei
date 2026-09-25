@@ -133,8 +133,8 @@ lessons            id, technique_slug fk, sort, title, steps jsonb
 puzzles            id, givens char(81) unique, solution char(81), difficulty,
                    techniques text[], source, created_at
 drills             id, puzzle_id fk, technique_slug fk, position jsonb, expected jsonb
-games              id, user_id fk, puzzle_id fk, state jsonb, hints jsonb,
-                   mistakes, started_at, finished_at
+games              id, user_id fk, puzzle_id fk, state jsonb, started_at,
+                   updated_at, finished_at (unique user_id, puzzle_id)
 technique_progress user_id, technique_slug, lessons_done, drills_seen,
                    drills_correct, hint_count, mastery real, last_practiced_at
                    (pk user_id, technique_slug)
@@ -144,7 +144,8 @@ technique_progress user_id, technique_slug, lessons_done, drills_seen,
   paragraph of narration. The lesson player steps through them; the renderer is the
   same one hints use.
 - `games.state` is the whole board, pencil marks included, saved as you play, so a
-  game resumes on any device.
+  game resumes on any device. Undo history stays on the device. Hints and mistakes
+  get columns when M3 counts them.
 - `mastery` is a score from 0 to 1 per technique, from drill accuracy and hints
   taken, decaying with time since last practice. It is a formula, not a model.
 
@@ -190,9 +191,13 @@ and `drills` with a first batch across difficulties.
 *Done when* every stored puzzle grades, and the grader agrees with known ratings on
 a set of reference puzzles.
 
-**M3: Hints and saved games.** Three-level hints from the engine, drawn on the
-board. Games saved as you play and resumed. A puzzle picker by difficulty and by
-technique.
+**Saved games (done, ahead of M3).** One game per player per puzzle in `games`,
+saved a moment after each move and resumed on any device. A tab picks up moves
+made elsewhere when it regains focus. Last write wins between devices playing at
+the same instant. Lessons will save their place the same way in M4.
+
+**M3: Hints and a puzzle picker.** Three-level hints from the engine, drawn on the
+board. A puzzle picker by difficulty and by technique.
 *Done when* a stuck player can finish any tier 1–3 puzzle with hints alone.
 
 **M4: Lessons and drills.** A page per technique, the lesson player, drills with

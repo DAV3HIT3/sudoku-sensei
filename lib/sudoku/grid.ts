@@ -81,3 +81,18 @@ export function popcount(m: number): number {
   for (; m; m &= m - 1) n++;
   return n;
 }
+
+/**
+ * `state` as a saved board of the puzzle with these givens, or null if it is not
+ * one: 81 digits keeping every given, and 81 pencil-mark masks. Guards what the
+ * browser sends before it is stored.
+ */
+export function boardOf(givens: string, state: unknown): { values: string; notes: number[] } | null {
+  const s = state as { values?: unknown; notes?: unknown } | null;
+  if (typeof s?.values !== "string" || !/^[0-9]{81}$/.test(s.values)) return null;
+  const values = s.values;
+  if (![...givens].every((g, i) => g === "0" || values[i] === g)) return null;
+  if (!Array.isArray(s.notes) || s.notes.length !== 81) return null;
+  if (!s.notes.every((n) => Number.isInteger(n) && (n & ~ALL) === 0)) return null;
+  return { values, notes: s.notes as number[] };
+}

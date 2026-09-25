@@ -1,4 +1,4 @@
-import { char, integer, pgTable, primaryKey, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { char, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, unique } from "drizzle-orm/pg-core";
 
 /**
  * A player. Holds nothing about how they sign in: that is `identities`, so a
@@ -36,3 +36,25 @@ export const puzzles = pgTable("puzzles", {
   source: text("source").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * A player's game of one puzzle: one per player per puzzle, saved as they play,
+ * so it resumes on any device. Restarting overwrites it.
+ */
+export const games = pgTable(
+  "games",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    puzzleId: integer("puzzle_id").notNull().references(() => puzzles.id, { onDelete: "cascade" }),
+    /** The board: 81 digits (0 empty) and each cell's pencil marks as a bitmask (bit d = digit d). */
+    state: jsonb("state").$type<GameState>().notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    /** When the board first matched the solution. */
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [unique().on(t.userId, t.puzzleId)],
+);
+
+export type GameState = { values: string; notes: number[] };
