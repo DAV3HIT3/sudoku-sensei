@@ -18,7 +18,10 @@ The app applies its migrations (`db/migrations`) on start-up. After changing
 `db/schema.ts`, run `npm run db:generate` and commit the new migration.
 
 Players are identified by the `Tailscale-User-Login` header, which the sidecar adds
-to each request. In development `DEV_USER_LOGIN` stands in for it.
+to each request. It is trusted only with `TRUST_TAILSCALE_HEADERS=true`, which only
+the monster deployment sets. In development, `DEV_USER_LOGIN` stands in for it.
+Sign-in methods live in `identities`, separate from `users`, so that public accounts
+can be added later. See "Built to go public" in `docs/PLAN.md`.
 
 ## Deploying
 

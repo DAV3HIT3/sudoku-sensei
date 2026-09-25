@@ -48,6 +48,9 @@ services:
     networks: [home-db]
     environment:
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in deploy/.env}
+      # Safe only because the sidecar is the sole way in and sets these headers
+      # itself. A deployment with any other way in must leave this unset.
+      TRUST_TAILSCALE_HEADERS: "true"
       PORT: 3000
       # Next's standalone server binds HOSTNAME, which Docker sets to the container name.
       HOSTNAME: 0.0.0.0

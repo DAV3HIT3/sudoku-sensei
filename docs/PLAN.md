@@ -90,16 +90,43 @@ Following the `DAV3HIT3/monster` README:
 The tailnet is the access control, as for utilitybox. `tailscale serve` sends each
 request with `Tailscale-User-Login` and `Tailscale-User-Name` headers, so the app
 knows who is playing with no passwords, sessions or login page: the first request
-from a login creates its user. In development an env var stands in for the header.
+from a login creates its user. In development `DEV_USER_LOGIN` stands in for the
+header.
 
-This only holds while the app is reachable solely through the sidecar, which is the
-reason not to publish a host port. If people without a tailnet login should play,
-this becomes a real login (argon2, as realbudget does), and that is a later phase.
+The headers are trusted only when `TRUST_TAILSCALE_HEADERS=true`, which only
+`deploy/compose.yml` sets. That is safe only while the sidecar is the sole way in,
+which is the reason not to publish a host port.
+
+#### Built to go public
+
+Signing in is kept apart from being a player, so public accounts can be added
+without touching game code or moving anyone's progress:
+
+- `users` holds the player and nothing about how they sign in. Every other table
+  references `users.id`.
+- `identities (provider, subject) -> user_id` holds the ways a user signs in.
+  Today that is only `tailscale` (subject: the tailnet login). Public sign-in adds
+  more providers: `password` (subject: the email, plus a hash column), or an OAuth
+  provider (subject: its user id). A user can have several.
+- `currentUser()` in `lib/user.ts` is the only code that knows how identity
+  arrives. Pages and actions call it and use `user.id`.
+
+Going public then means:
+
+1. Sign-up and sign-in pages, and a `sessions` table with an httpOnly, Secure,
+   SameSite=Lax cookie. `currentUser()` checks the cookie after the Tailscale
+   header. Use argon2 for passwords, as realbudget does, and add rate limiting,
+   email verification and password reset. realbudget2 has already done all of this.
+2. A public entry point (a host, or Tailscale Funnel), with
+   `TRUST_TAILSCALE_HEADERS` unset on that deployment.
+3. Tailnet players keep their progress: they sign in once on the public site, and
+   "link account" adds a second identity to the same user.
 
 ## Data model
 
 ```
-users              id, ts_login unique, display_name, settings jsonb, created_at
+users              id, display_name, created_at
+identities         provider, subject (pk), user_id fk
 techniques         slug pk, name, tier, sort, summary, body_md, prerequisites text[]
 lessons            id, technique_slug fk, sort, title, steps jsonb
 puzzles            id, givens char(81) unique, solution char(81), difficulty,
@@ -179,7 +206,7 @@ drills first), puzzles chosen to exercise it. A daily puzzle.
 **M6: Tiers 4–5.** Chain and uniqueness techniques in the engine (the renderer
 gains chain links), their lessons and drills.
 
-**Later, if wanted.** Real logins for people off the tailnet, in-app content
+**Later, if wanted.** Public accounts (see Built to go public), in-app content
 editing, streaks and achievements, timed modes, importing puzzles from a string or
 a photo.
 
