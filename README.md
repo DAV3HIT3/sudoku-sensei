@@ -40,8 +40,9 @@ can be added later. See "Built to go public" in `docs/PLAN.md`.
 Runs on monster as the app and a Tailscale sidecar, at
 `https://sudoku-sensei.tail3d5daf.ts.net` only. No host port is published: the
 tailnet is the access control, and the identity headers are only trustworthy
-because every request comes through the sidecar. Deploy a `main` commit whose CI
-passed:
+because every request comes through the sidecar. There is no CI: run
+`npm run check` (typecheck, tests, build) locally, then deploy a `main` commit that
+passed it:
 
 ```bash
 ssh monster 'cd ~/proj/sudoku-sensei && git pull --ff-only && \

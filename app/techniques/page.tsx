@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import { drillStats, lessonsDone } from "@/lib/progress";
 import { TIERS } from "@/lib/sudoku/solver";
 import { listTechniques } from "@/lib/techniques";
+import { currentUser } from "@/lib/user";
 
 export default async function Techniques() {
   await connection(); // read from the database per request, not frozen at build time
-  const all = await listTechniques();
+  const [all, user] = await Promise.all([listTechniques(), currentUser()]);
+  const [done, stats] = user ? await Promise.all([lessonsDone(user.id), drillStats(user.id)]) : [new Set<string>(), new Map()];
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-6">
       <Link href="/" className="text-sm text-zinc-500 hover:underline">← Puzzles</Link>
@@ -17,7 +20,12 @@ export default async function Techniques() {
           <ul className="flex flex-col gap-3">
             {all.filter((t) => t.tier === tier).map((t) => (
               <li key={t.slug}>
-                <Link href={`/techniques/${t.slug}`} className="font-medium hover:underline">{t.name}</Link>
+                <div className="flex items-baseline gap-3">
+                  <Link href={`/techniques/${t.slug}`} className="font-medium hover:underline">{t.name}</Link>
+                  <span className="text-xs text-zinc-500">
+                    {[done.has(t.slug) && "lesson done", stats.get(t.slug) && `${stats.get(t.slug).right} of ${stats.get(t.slug).tried} drills right`].filter(Boolean).join(" · ")}
+                  </span>
+                </div>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">{t.summary}</p>
               </li>
             ))}

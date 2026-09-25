@@ -30,7 +30,7 @@ test("text at each level", () => {
   const h = hint(b, SOLUTION);
   expect(h.kind).toBe("step");
   expect(hintText(h, 1, b)).toMatch(/^Look for a /);
-  expect(hintText(h, 3, b)).toMatch(/: place \d in r\dc\d\.$/);
+  expect(hintText(h, 3, b)).toMatch(/\. So place \d in r\dc\d\.$/);
 });
 
 const corpus = readFileSync(new URL("../../content/puzzles.txt", import.meta.url), "utf8")

@@ -3,8 +3,8 @@
  * which may be incomplete or wrong. Mistakes come first, because every deduction
  * after one is built on sand.
  */
-import { candidates, col, PEERS, row, type Grid } from "./grid.ts";
-import { nextStep, TECHNIQUES, type Position, type Step } from "./solver.ts";
+import { candidates, PEERS, type Grid } from "./grid.ts";
+import { cellName, nextStep, TECHNIQUES, type Position, type Step } from "./solver.ts";
 
 export type Hint =
   | { kind: "wrong-digit"; cell: number }
@@ -46,7 +46,6 @@ export function applyHint(board: Board, h: Hint): Board {
   return { values, notes };
 }
 
-export const cellName = (c: number) => `r${row(c) + 1}c${col(c) + 1}`;
 const list = (xs: string[]) => (xs.length < 3 ? xs.join(" and ") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
 /** What the hint says at each level: 1 names the idea, 2 points at the cells, 3 gives it away. */
@@ -63,8 +62,12 @@ export function hintText(h: Hint, level: number, board: Board): string {
   const name = TECHNIQUES.find((t) => t.slug === h.step.technique)!.name;
   if (level === 1) return `Look for a ${name}.`;
   if (level === 2) return `${name}: look at the highlighted cells.`;
-  const place = h.step.place.map(({ cell, digit }) => `place ${digit} in ${cellName(cell)}`);
-  const byDigit = Map.groupBy(h.step.eliminate, (e) => e.digit);
-  const remove = [...byDigit].map(([d, es]) => `remove ${d} from ${list(es.map((e) => cellName(e.cell)))}`);
-  return `${name}: ${list([...place, ...remove])}.`;
+  return `${name}: ${h.step.why} So ${actionText(h.step)}.`;
+}
+
+/** What a step does: "place 4 in r5c6", "remove 7 from r1c5 and r8c5". */
+export function actionText(step: Step): string {
+  const place = step.place.map(({ cell, digit }) => `place ${digit} in ${cellName(cell)}`);
+  const remove = [...Map.groupBy(step.eliminate, (e) => e.digit)].map(([d, es]) => `remove ${d} from ${list(es.map((e) => cellName(e.cell)))}`);
+  return list([...place, ...remove]);
 }
