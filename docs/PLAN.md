@@ -146,9 +146,9 @@ lesson_progress    user_id, technique (pk), stage, completed_at, updated_at
 - `games.state` is the whole board, pencil marks included, saved as you play, so a
   game resumes on any device. Undo history stays on the device. Hints and mistakes
   get columns when M3 counts them.
-- Mastery (M5) will be a score from 0 to 1 per technique, computed from drill
-  accuracy and hints taken, decaying with time since last practice. It is a
-  formula over those tables, not a model and not a stored column.
+- Mastery is a score from 0 to 1 per technique, computed on each request from
+  drill answers, solved games and hints (`lib/mastery.ts`). It is a formula over
+  those tables, not a model and not a stored column.
 
 ### Where content lives
 
@@ -223,9 +223,13 @@ technique is counted from `drill_attempts`, `lesson_progress` and `games.hints`
 rather than kept in a separate table.
 *Done when* someone who knows only singles can learn the X-Wing from the app.
 
-**M5: The training loop.** Mastery score, a progress page per technique, "what to
-practice next" (the lowest-mastery technique whose prerequisites are met, due
-drills first), puzzles chosen to exercise it. A daily puzzle.
+**M5: The training loop (done).** Mastery per technique (`lib/mastery.ts`): the
+better of the last five drills and clean solves of puzzles that need it, less
+recent hints, fading after two weeks idle; 80% is mastered. A Next card on the
+home page gives one thing to do: the game in progress, else the first unmastered
+technique's lesson, drills, then a puzzle that needs it, else today's puzzle. The
+day's puzzle is the same for everyone and turns at midnight Mountain time. A
+progress page shows each technique's mastery and the evidence behind it.
 *Done when* opening the app always offers one clear next thing to do.
 
 **M6: Tiers 4–5.** Chain and uniqueness techniques in the engine (the renderer

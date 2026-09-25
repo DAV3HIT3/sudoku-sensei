@@ -34,7 +34,7 @@ export default async function Technique({ params }: PageProps<"/techniques/[slug
       </div>
 
       {examples.length > 0 && (
-        <section className="flex flex-col gap-3">
+        <section id="lesson" className="flex scroll-mt-4 flex-col gap-3">
           <h2 className="flex items-baseline justify-between text-xl font-medium">
             Lesson
             {lesson.done && <span className="text-sm font-normal text-emerald-700 dark:text-emerald-400">Finished</span>}
