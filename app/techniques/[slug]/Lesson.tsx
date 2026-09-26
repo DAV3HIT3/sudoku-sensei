@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import GridView, { stepMarks, type Mark } from "@/components/GridView";
 import { actionText } from "@/lib/sudoku/hint";
 import type { DrillView } from "@/lib/techniques";
@@ -17,9 +17,38 @@ export default function Lesson({ slug, name, examples, initialStage }: {
 }) {
   const end = examples.length * 3;
   const [stage, setStage] = useState(Math.min(initialStage, end));
+
+  // Only the latest stage matters, so saves wait for a pause in the clicking, and
+  // go as a beacon if the page is left first. Reaching the end sticks until sent.
+  const unsent = useRef<{ stage: number; last: boolean } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const flush = () => {
+    const u = unsent.current;
+    unsent.current = null;
+    clearTimeout(timer.current);
+    if (u) saveStage(slug, u.stage, u.last).catch(() => {});
+  };
+  useEffect(() => {
+    const beacon = () => {
+      const u = unsent.current;
+      unsent.current = null;
+      if (u) navigator.sendBeacon(`/api/lessons/${slug}`, new Blob([JSON.stringify(u)], { type: "text/plain" }));
+    };
+    const onHide = () => document.visibilityState === "hidden" && beacon();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", beacon);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", beacon);
+      clearTimeout(timer.current);
+      beacon();
+    };
+  }, [slug]);
   const go = (s: number) => {
     setStage(s);
-    saveStage(slug, s, s === end).catch(() => {});
+    unsent.current = { stage: s, last: s === end || (unsent.current?.last ?? false) };
+    clearTimeout(timer.current);
+    timer.current = setTimeout(flush, 300);
   };
 
   if (stage === end)

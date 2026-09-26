@@ -57,6 +57,13 @@
       "when": 1790373356905,
       "tag": "0007_guides",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790391624444,
+      "tag": "0008_retired",
+      "breakpoints": true
     }
   ]
 }
