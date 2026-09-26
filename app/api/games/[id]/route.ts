@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { saveGame } from "@/lib/games";
+import { sameOrigin } from "@/lib/http";
 import { currentUser } from "@/lib/user";
 
 /**
@@ -8,10 +9,7 @@ import { currentUser } from "@/lib/user";
  * off as the page goes). Everything else saves through the server action.
  */
 export async function POST(req: NextRequest, ctx: RouteContext<"/api/games/[id]">) {
-  // Server actions refuse cross-site requests by themselves; a route handler has to.
-  const origin = req.headers.get("origin");
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  if (!origin || new URL(origin).host !== host) return new Response("cross-site request", { status: 403 });
+  if (!sameOrigin(req)) return new Response("cross-site request", { status: 403 });
   const user = await currentUser();
   if (!user) return new Response("not signed in", { status: 401 });
   const id = Number((await ctx.params).id);

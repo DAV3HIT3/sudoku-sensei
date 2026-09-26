@@ -19,7 +19,7 @@ export default async function Home() {
   const label = (id: number) => {
     const p = puzzles.find((q) => q.id === id)!;
     const n = groups.get(p.difficulty ?? -1)!.indexOf(p) + 1;
-    return `${p.difficulty === null ? "Expert" : TECHNIQUES[p.difficulty].name} · puzzle ${n}`;
+    return `${p.difficulty === null ? "Beyond the lessons" : TECHNIQUES[p.difficulty].name} · puzzle ${n}`;
   };
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
@@ -53,16 +53,16 @@ export default async function Home() {
         if (!rows.length) return null;
         return (
           <section key={tier} className="flex flex-col gap-2">
-            <h2 className="text-sm font-medium tracking-wide text-zinc-500 uppercase">{tier ? TIERS[tier] : "Expert"}</h2>
+            <h2 className="text-sm font-medium tracking-wide text-zinc-500 uppercase">{tier ? TIERS[tier] : "Beyond the lessons"}</h2>
             <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {rows.map(({ t, list }) => (
                 <li key={t?.slug ?? "expert"} className="grid grid-cols-[minmax(0,1fr)_auto_4rem_5rem] items-center gap-2 py-2 sm:grid-cols-[minmax(0,1fr)_auto_5rem_6rem]">
                   <span className="flex min-w-0 items-center gap-1">
-                    <span className="truncate text-sm font-medium sm:text-base">{t ? t.name : "Beyond the lessons"}</span>
+                    <span className="truncate text-sm font-medium sm:text-base">{t ? t.name : "Unsolved by the lessons"}</span>
                     <InfoLink href={t ? `/techniques/${t.slug}` : "/techniques"} label={t ? `About ${t.name}` : "About the techniques"} />
                   </span>
                   {list.length ? (
-                    <PuzzlePicker label={t ? t.name : "Expert"} puzzles={list.map((p) => ({ id: p.id, status: status.get(p.id) }))} />
+                    <PuzzlePicker label={t ? t.name : "Beyond the lessons"} puzzles={list.map((p) => ({ id: p.id, status: status.get(p.id) }))} />
                   ) : (
                     <>
                       <span className="col-span-2 text-right text-sm text-zinc-500">No puzzles yet</span>

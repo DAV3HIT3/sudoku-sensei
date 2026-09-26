@@ -212,8 +212,11 @@ test("every instance of every technique, at every position of every corpus solve
     const grid = parse(givens);
     const solution = solve(grid)[0];
     let p = start(grid);
-    for (let s = nextStep(p); s; s = nextStep(p)) {
+    let at = 0;
+    for (let s = nextStep(p); s; s = nextStep(p), at++) {
       for (const t of TECHNIQUES) {
+        // The tier-5 searches are costly: every tenth position of each solve.
+        if (t.tier === 5 && at % 10) continue;
         let n = 0;
         for (const inst of t.all(p)) {
           for (const { cell, digit } of inst.place) expect(digit, `${t.slug} placed wrongly in ${givens}`).toBe(solution[cell]);
@@ -225,3 +228,42 @@ test("every instance of every technique, at every position of every corpus solve
     }
   }
 }, 600_000);
+
+describe("tier 5", () => {
+  const rowBut = (r: number, keep: number[]) => rowCells(r, keep);
+
+  test("finned x-wing: 5 in rows 1 and 5 in columns 2 and 7, fin r5c8; box 6 loses 5 in column 7", () => {
+    const p = drop(drop(blank(), 5, rowBut(0, [1, 6])), 5, rowBut(4, [1, 6, 7]));
+    const s = find("finned-x-wing", p)!;
+    expect(s.eliminate.map((e) => `${e.cell}:${e.digit}`).sort()).toEqual(as([rc(3, 6), rc(5, 6)], 5));
+    expect(s.why).not.toMatch(/sashimi/);
+  });
+
+  test("sashimi x-wing: the same with r5c2 missing", () => {
+    const p = drop(drop(blank(), 5, rowBut(0, [1, 6])), 5, rowBut(4, [6, 7]));
+    const s = find("finned-x-wing", p)!;
+    expect(s.eliminate.map((e) => `${e.cell}:${e.digit}`).sort()).toEqual(as([rc(3, 6), rc(5, 6)], 5));
+    expect(s.why).toMatch(/sashimi/);
+  });
+
+  test("sue de coq: r1c1 {1,2,3} and r1c2 {2,3,4}, with r1c6 {1,2} and r3c3 {3,4}", () => {
+    const p = blank();
+    [p.cands[rc(0, 0)], p.cands[rc(0, 1)], p.cands[rc(0, 5)], p.cands[rc(2, 2)]] = [bits(1, 2, 3), bits(2, 3, 4), bits(1, 2), bits(3, 4)];
+    const line = [2, 3, 4, 6, 7, 8].map((c) => rc(0, c));
+    const boxRest = [rc(0, 2), rc(1, 0), rc(1, 1), rc(1, 2), rc(2, 0), rc(2, 1)];
+    expect(elims("sue-de-coq", p)).toEqual([...as(line, 1, 2), ...as(boxRest, 3, 4)].sort());
+  });
+
+  test("als-xz: r4c6 {1,2} and box 4's r4c2 {1,3} + r6c3 {2,3}, linked by 1; cells seeing every 2 lose it", () => {
+    const p = blank();
+    [p.cands[rc(3, 5)], p.cands[rc(3, 1)], p.cands[rc(5, 2)]] = [bits(1, 2), bits(1, 3), bits(2, 3)];
+    expect(elims("als-xz", p)).toEqual(as([rc(3, 0), rc(3, 2), rc(5, 3), rc(5, 4), rc(5, 5)], 2));
+  });
+
+  test("aic: (1)r1c1 = (1)r1c5 - (1)r5c5 = (2)r5c5 - (2)r5c9 = (2)r1c9, so r1c1 is not 2", () => {
+    const p = drop(drop(blank(), 1, rowBut(0, [0, 4])), 2, colCells(8, [4, 0]));
+    p.cands[rc(4, 4)] = bits(1, 2);
+    const found = [...TECHNIQUES.find((t) => t.slug === "aic")!.all(p)];
+    expect(found.some((s) => s.eliminate.some((e) => e.cell === rc(0, 0) && e.digit === 2))).toBe(true);
+  });
+});

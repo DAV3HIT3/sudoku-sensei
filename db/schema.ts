@@ -56,6 +56,11 @@ export const puzzles = pgTable("puzzles", {
   difficulty: integer("difficulty"),
   /** Slugs of every technique the solver used, easiest first. */
   techniques: text("techniques").array().notNull().default(sql`'{}'`),
+  /**
+   * No longer in content/puzzles.txt. Hidden from every list and pick, but kept, so
+   * games already played on it stay, and still open from their links.
+   */
+  retired: boolean("retired").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
