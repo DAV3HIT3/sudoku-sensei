@@ -8,6 +8,7 @@ import type { SavedGame } from "@/lib/games";
 import { erase, paint, PAINTS, place, toggleNote, type Cells } from "@/lib/sudoku/edit";
 import { box, candidates, col, conflicts, row } from "@/lib/sudoku/grid";
 import { applyHint, hint, hintText, type Hint } from "@/lib/sudoku/hint";
+import type { Link as ChainLink } from "@/lib/sudoku/solver";
 import { load, save } from "./actions";
 
 /** What undo steps through: every digit, pencil mark (bitmask per cell) and paint colour. */
@@ -171,13 +172,14 @@ export default function Board({ puzzleId, givens, solution, saved }: {
   // What the hint draws on the board.
   let hintCells = new Set<number>();
   let marks = new Map<string, Mark>();
+  let links: ChainLink[] = [];
   let showCands: number[] | null = null;
   if (active && active.level >= 2) {
     const h = active.hint;
     if (h.kind === "wrong-digit" || h.kind === "wrong-notes") hintCells.add(h.cell);
     if (h.kind === "step" && active.level === 2) hintCells = new Set(h.step.highlight.cells);
     if (h.kind === "step" && active.level === 3) {
-      ({ cells: hintCells, marks } = stepMarks(h.step));
+      ({ cells: hintCells, marks, links } = stepMarks(h.step));
       showCands = h.position.cands;
     }
   }
@@ -229,6 +231,7 @@ export default function Board({ puzzleId, givens, solution, saved }: {
         values={values}
         notes={cellNotes}
         marks={marks}
+        links={links}
         selectedDigit={selDigit}
         onSelect={select}
         look={(c) => ({

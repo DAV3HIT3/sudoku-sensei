@@ -46,7 +46,7 @@ export function applyHint(board: Board, h: Hint): Board {
   return { values, notes };
 }
 
-const list = (xs: string[]) => (xs.length < 3 ? xs.join(" and ") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
+const list = (xs: (string | number)[]) => (xs.length < 3 ? xs.join(" and ") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
 /** What the hint says at each level: 1 names the idea, 2 points at the cells, 3 gives it away. */
 export function hintText(h: Hint, level: number, board: Board): string {
@@ -68,6 +68,10 @@ export function hintText(h: Hint, level: number, board: Board): string {
 /** What a step does: "place 4 in r5c6", "remove 7 from r1c5 and r8c5". */
 export function actionText(step: Step): string {
   const place = step.place.map(({ cell, digit }) => `place ${digit} in ${cellName(cell)}`);
-  const remove = [...Map.groupBy(step.eliminate, (e) => e.digit)].map(([d, es]) => `remove ${d} from ${list(es.map((e) => cellName(e.cell)))}`);
+  const cells = new Set(step.eliminate.map((e) => e.cell));
+  // All in one cell: "remove 2 and 5 from r1c4"; otherwise by digit: "remove 7 from r1c5 and r8c5".
+  const remove = cells.size === 1 && step.eliminate.length > 1
+    ? [`remove ${list(step.eliminate.map((e) => e.digit))} from ${cellName(step.eliminate[0].cell)}`]
+    : [...Map.groupBy(step.eliminate, (e) => e.digit)].map(([d, es]) => `remove ${d} from ${list(es.map((e) => cellName(e.cell)))}`);
   return list([...place, ...remove]);
 }

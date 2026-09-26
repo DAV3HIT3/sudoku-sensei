@@ -89,6 +89,7 @@ export default function Drill({ slug, name, first, stats, coloring = false }: {
         values={values}
         notes={(c) => position.cands[c]}
         marks={marks}
+        links={shown?.links ?? []}
         onSelect={(c) => setSelected(c)}
         look={(c) => ({
           selected: c === selected && !verdict,

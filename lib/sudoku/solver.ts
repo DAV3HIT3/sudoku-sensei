@@ -16,10 +16,16 @@ export type Step = {
    * What to draw: the cells the pattern lives in and its key candidates, plus a
    * second group in another colour where a pattern has two sides (coloring).
    */
-  highlight: { cells: number[]; candidates: Candidate[]; others?: Candidate[] };
+  highlight: { cells: number[]; candidates: Candidate[]; others?: Candidate[]; links?: Link[] };
   /** Why this instance works, in a sentence or two, naming its cells. */
   why: string;
 };
+
+/**
+ * A link in a chain, drawn between two candidates. Strong: at least one of the two
+ * is true. Weak: at most one is.
+ */
+export type Link = { from: Candidate; to: Candidate; strong: boolean };
 
 /** Digits placed so far, and for each empty cell the candidates not yet ruled out. */
 export type Position = { values: Grid; cands: number[] };
@@ -451,6 +457,209 @@ function* simpleColoring(p: Position): Generator<Step> {
   }
 }
 
+const ALL_UNITS = UNITS.map((_, i) => i);
+const MAX_CHAIN = 12;
+
+/**
+ * X-Chain: one digit, cells joined by links that alternate strong (a unit where
+ * the digit has only these two cells) and weak (the two cells see each other),
+ * starting and ending strong. Then one end or the other holds the digit, so a
+ * cell seeing both ends cannot. Shortest chains first.
+ */
+function* xChain(p: Position): Generator<Step> {
+  for (const d of DIGITS) {
+    const strong = new Map<number, number[]>();
+    for (const { ends: [a, b] } of strongLinks(p, d, ALL_UNITS)) {
+      strong.set(a, [...(strong.get(a) ?? []), b]);
+      strong.set(b, [...(strong.get(b) ?? []), a]);
+    }
+    const holders = Array.from({ length: 81 }, (_, c) => c).filter((c) => has(p, c, d));
+    for (const start of strong.keys()) {
+      // Breadth first, so shorter chains come first; each path records its cells.
+      const queue: { path: number[]; strongLast: boolean }[] = strong.get(start)!.map((b) => ({ path: [start, b], strongLast: true }));
+      const seen = new Set(queue.map((q) => q.path[1] * 2 + 1));
+      for (let i = 0; i < queue.length; i++) {
+        const { path, strongLast } = queue[i];
+        const end = path.at(-1)!;
+        if (strongLast && path.length >= 4) {
+          const eliminate = seeingAll(p, [start, end], d, path);
+          if (eliminate.length) {
+            const links = path.slice(1).map((c, k): Link => ({ from: { cell: path[k], digit: d }, to: { cell: c, digit: d }, strong: k % 2 === 0 }));
+            const chain = path.map((c, k) => (k === 0 ? cellName(c) : `${k % 2 ? " = " : " - "}${cellName(c)}`)).join("");
+            yield step("x-chain", {
+              eliminate,
+              highlight: { cells: path, candidates: cands(p, path, [d]), links },
+              why: `A chain on ${d}: ${chain}. At "=" one of the two cells is ${d}; at "-" they are not both ${d}. Following it, if ${cellName(start)} is not ${d} then ${cellName(end)} is, so a cell that sees both ends cannot be ${d}.`,
+            });
+          }
+        }
+        if (path.length >= MAX_CHAIN) continue;
+        const nexts = strongLast ? holders.filter((c) => sees(c, end)) : strong.get(end) ?? [];
+        for (const n of nexts) {
+          const key = n * 2 + (strongLast ? 0 : 1);
+          if (path.includes(n) || seen.has(key)) continue;
+          seen.add(key);
+          queue.push({ path: [...path, n], strongLast: !strongLast });
+        }
+      }
+    }
+  }
+}
+
+/**
+ * XY-Chain: cells with two candidates each, every one seeing the next. Suppose
+ * the first is not x: then it is its other digit, which the next cell cannot be,
+ * so that cell is its other digit, and so on. If the last cell ends up forced to x,
+ * one end or the other is x, so a cell seeing both ends cannot be.
+ */
+function* xyChain(p: Position): Generator<Step> {
+  const bv = bivalue(p);
+  const other = (c: number, d: number) => digitsOf(p.cands[c] & ~(1 << d))[0];
+  for (const start of bv)
+    for (const x of digitsOf(p.cands[start])) {
+      // Each entry: the cells so far, and the digit each is forced to if the first is not x.
+      const queue = [{ path: [start], vals: [other(start, x)] }];
+      const seen = new Set([start * 10 + other(start, x)]);
+      for (let i = 0; i < queue.length; i++) {
+        const { path, vals } = queue[i];
+        const [c, v] = [path.at(-1)!, vals.at(-1)!];
+        if (path.length >= MAX_CHAIN) continue;
+        for (const n of bv) {
+          if (path.includes(n) || !sees(n, c) || !has(p, n, v)) continue;
+          const forced = other(n, v);
+          const [np, nv] = [[...path, n], [...vals, forced]];
+          if (forced === x && np.length >= 3) {
+            const eliminate = seeingAll(p, [start, n], x, np);
+            if (eliminate.length) {
+              const links: Link[] = [];
+              np.forEach((cell, k) => {
+                const into = k === 0 ? x : nv[k - 1];
+                links.push({ from: { cell, digit: into }, to: { cell, digit: nv[k] }, strong: true });
+                if (k + 1 < np.length) links.push({ from: { cell, digit: nv[k] }, to: { cell: np[k + 1], digit: nv[k] }, strong: false });
+              });
+              const steps = np.slice(1).map((cell, k) => `${cellName(cell)} is ${nv[k + 1]}`).join(", so ");
+              yield step("xy-chain", {
+                eliminate,
+                highlight: { cells: np, candidates: cands(p, np, DIGITS), links },
+                why: `Every cell of this chain has two candidates. If ${cellName(start)} is not ${x}, it is ${nv[0]}, so ${steps}. Either ${cellName(start)} or ${cellName(n)} is ${x}, so a cell that sees both cannot be ${x}.`,
+              });
+            }
+          }
+          const key = n * 10 + forced;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          queue.push({ path: np, vals: nv });
+        }
+      }
+    }
+}
+
+/**
+ * Unique Rectangle: four empty cells at the corners of a rectangle across exactly
+ * two boxes, all holding the same two candidates {a,b}. If they could all end up
+ * a or b, the two digits could be swapped round the rectangle and the puzzle
+ * would have two solutions. It has one, so something must break the pattern:
+ *   1. three corners are exactly {a,b}: the fourth is neither a nor b;
+ *   2. the other two corners, in one line, add the same single digit c: one of them
+ *      is c, so a cell seeing both is not;
+ *   3. the other two corners' extra digits act as one cell, which can complete a
+ *      naked subset with other cells of their line or box;
+ *   4. in a unit holding the other two corners, a is only in those two: one of them
+ *      is a, so neither can be b.
+ */
+function* uniqueRectangle(p: Position): Generator<Step> {
+  const pairName = (m: number) => list(digitsOf(m));
+  for (const [r1, r2] of combinations(ROWS, 2))
+    for (const [c1, c2] of combinations(ROWS, 2)) {
+      const corners = [r1 * 9 + c1, r1 * 9 + c2, r2 * 9 + c1, r2 * 9 + c2];
+      if (new Set(corners.map(box)).size !== 2 || corners.some((c) => p.values[c])) continue;
+      const common = corners.reduce((m, c) => m & p.cands[c], ALL);
+      for (const [a, b] of combinations(digitsOf(common), 2)) {
+        const pair = (1 << a) | (1 << b);
+        const floor = corners.filter((c) => p.cands[c] === pair);
+        const roof = corners.filter((c) => p.cands[c] !== pair);
+        const base = { cells: corners, candidates: cands(p, corners, [a, b]) };
+        const rect = `${cellList(corners)} form a rectangle over two boxes, all with ${pairName(pair)}`;
+        const swap = `the four could swap ${a} and ${b} and the puzzle would have two solutions`;
+        if (floor.length === 3) {
+          const eliminate = cands(p, roof, [a, b]);
+          yield step("unique-rectangle", {
+            eliminate,
+            highlight: base,
+            why: `Type 1: ${rect}. If ${cellName(roof[0])} were ${a} or ${b} too, ${swap}. It has one, so ${cellName(roof[0])} is neither.`,
+          });
+          continue;
+        }
+        if (floor.length !== 2 || !(row(roof[0]) === row(roof[1]) || col(roof[0]) === col(roof[1]))) continue;
+        const extra = [p.cands[roof[0]] & ~pair, p.cands[roof[1]] & ~pair];
+        const roofUnits = ALL_UNITS.filter((u) => roof.every((c) => UNITS[u].includes(c)));
+        // Type 2
+        if (extra[0] === extra[1] && popcount(extra[0]) === 1) {
+          const c = digitsOf(extra[0])[0];
+          const eliminate = seeingAll(p, roof, c, corners);
+          if (eliminate.length)
+            yield step("unique-rectangle", {
+              eliminate,
+              highlight: { ...base, others: cands(p, roof, [c]) },
+              why: `Type 2: ${rect}. ${cellName(roof[0])} and ${cellName(roof[1])} each add only ${c}. Unless one of them is ${c}, ${swap}, so one is ${c} and a cell that sees both cannot be.`,
+            });
+        }
+        // Type 3: needs two or more extra digits; with one it is type 2.
+        const union = extra[0] | extra[1];
+        for (const u of popcount(union) >= 2 ? roofUnits : []) {
+          const others = UNITS[u].filter((c) => !p.values[c] && !roof.includes(c));
+          const fit = others.filter((c) => (p.cands[c] & ~union) === 0);
+          for (const group of combinations(fit, popcount(union) - 1)) {
+            const eliminate = cands(p, others.filter((c) => !group.includes(c)), digitsOf(union));
+            if (eliminate.length)
+              yield step("unique-rectangle", {
+                eliminate,
+                highlight: { ...base, others: cands(p, [...roof, ...group], digitsOf(union)) },
+                why: `Type 3: ${rect}. To avoid a second solution one of ${cellName(roof[0])} and ${cellName(roof[1])} takes one of their extra digits, ${pairName(union)}, so together they act as one cell holding ${pairName(union)}. With ${cellList(group)} that fills ${pairName(union)} in ${unitName(u)}, so no other cell there can have them.`,
+              });
+          }
+        }
+        // Type 4
+        for (const u of roofUnits)
+          for (const [x, y] of [[a, b], [b, a]]) {
+            if (spots(p, u, x).length !== 2) continue;
+            const eliminate = cands(p, roof, [y]);
+            if (eliminate.length)
+              yield step("unique-rectangle", {
+                eliminate,
+                highlight: { ...base, others: cands(p, roof, [x]) },
+                why: `Type 4: ${rect}. In ${unitName(u)}, ${x} fits only in ${cellName(roof[0])} and ${cellName(roof[1])}, so one of them is ${x}. If either were ${y}, ${swap}, so neither is ${y}.`,
+              });
+          }
+      }
+    }
+}
+
+/**
+ * BUG+1 (bivalue universal grave plus one): every empty cell has two candidates
+ * except one with three. Without that cell each digit would sit twice in every
+ * unit, a pattern with two solutions, so the odd cell takes the digit that
+ * appears three times in its row.
+ */
+function* bugPlusOne(p: Position): Generator<Step> {
+  const open = Array.from({ length: 81 }, (_, c) => c).filter((c) => !p.values[c]);
+  const three = open.filter((c) => popcount(p.cands[c]) === 3);
+  if (three.length !== 1 || !open.every((c) => popcount(p.cands[c]) === 2 || c === three[0])) return;
+  const c = three[0];
+  // The digit that, taken out of the odd cell, leaves the grave: every candidate in
+  // every unit exactly twice. Without that it is not a BUG, and nothing follows.
+  const digit = digitsOf(p.cands[c]).find((d) => {
+    const q = { ...p, cands: p.cands.map((m, i) => (i === c ? m & ~(1 << d) : m)) };
+    return ALL_UNITS.every((u) => DIGITS.every((x) => [0, 2].includes(spots(q, u, x).length)));
+  });
+  if (!digit) return;
+  yield step("bug-plus-one", {
+    place: [{ cell: c, digit }],
+    highlight: { cells: open, candidates: cands(p, [c], [digit]) },
+    why: `Every empty cell has two candidates except ${cellName(c)} ${setOf(p.cands[c])}. Were it not ${digit}, every candidate would appear exactly twice in each row, column and box, a pattern that has two solutions. So ${cellName(c)} is ${digit}.`,
+  });
+}
+
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 
 // ---- The catalog ------------------------------------------------------------
@@ -490,7 +699,11 @@ export const TECHNIQUES: Technique[] = [
   t("swordfish", "Swordfish", 3, fish(3, "swordfish")),
   t("xyz-wing", "XYZ-Wing", 3, xyzWing),
   t("jellyfish", "Jellyfish", 3, fish(4, "jellyfish")),
+  t("unique-rectangle", "Unique Rectangle", 4, uniqueRectangle),
+  t("bug-plus-one", "BUG+1", 4, bugPlusOne),
   t("simple-coloring", "Simple Coloring", 4, simpleColoring),
+  t("x-chain", "X-Chain", 4, xChain),
+  t("xy-chain", "XY-Chain", 4, xyChain),
 ];
 
 export const TIERS = ["", "Easy", "Medium", "Hard", "Advanced"];
