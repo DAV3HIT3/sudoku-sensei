@@ -57,8 +57,9 @@ export const puzzles = pgTable("puzzles", {
   /** Slugs of every technique the solver used, easiest first. */
   techniques: text("techniques").array().notNull().default(sql`'{}'`),
   /**
-   * No longer in content/puzzles.txt. Hidden from every list and pick, but kept, so
-   * games already played on it stay, and still open from their links.
+   * No longer in content/puzzles.txt. Hidden from every list and pick. Deleted on
+   * start-up unless someone has a game on it or has answered one of its drills; then
+   * kept, so that progress stays and the game still opens from its link.
    */
   retired: boolean("retired").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -138,4 +139,10 @@ export const guides = pgTable("guides", {
   summary: text("summary").notNull(),
   /** Paragraphs separated by blank lines; a block of "- " lines is a list. */
   body: text("body").notNull(),
+});
+
+/** Small facts about the data itself, such as which engine last graded the puzzles. */
+export const meta = pgTable("meta", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
 });

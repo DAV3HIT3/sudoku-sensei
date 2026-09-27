@@ -267,8 +267,14 @@ and the `guides` table; 12 Simple Coloring puzzles were generated.
   slowest single hint on any puzzle takes about 20 ms.
 
 **Puzzle counts.** 6 per Easy and Medium technique (Hidden Quad has 3), 12 for
-the rest. Puzzles taken out of `content/puzzles.txt` are retired, not deleted:
-hidden from lists and picks, but players' games on them stay and still open.
+the rest. Puzzles taken out of `content/puzzles.txt` are retired: hidden from lists
+and picks, and deleted on start-up unless someone has a game on one or has answered
+one of its drills, in which case it stays so that progress is kept.
+
+**Start-up.** Grading every puzzle takes about ten seconds on monster, so start-up
+regrades only when the solver's source (a fingerprint baked in at build time by
+`next.config.ts`) or `content/puzzles.txt` has changed, recording what it graded in
+the `meta` table. Otherwise it only refreshes the technique and guide text.
 
 **Later, if wanted.** Public accounts (see Built to go public), in-app content
 editing, streaks and achievements, timed modes, importing puzzles from a string or
