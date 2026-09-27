@@ -86,7 +86,7 @@ export default function GridView({ values, notes, look, marks, links = [], selec
       role="grid"
       aria-label={label}
       aria-multiselectable={onSelect ? true : undefined}
-      className={`@container relative grid aspect-square w-full grid-cols-9 border-2 border-foreground select-none dark:border-white ${onSelect ? "touch-none" : ""}`}
+      className={`@container relative grid aspect-square w-full grid-cols-9 grid-rows-9 border-2 border-foreground select-none dark:border-white ${onSelect ? "touch-none" : ""}`}
       onPointerDown={onSelect && ((e) => {
         const c = cellAt(e.target as Element);
         if (c < 0) return;
