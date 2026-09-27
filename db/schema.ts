@@ -99,6 +99,11 @@ export const games = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     /** When the board first matched the solution. */
     finishedAt: timestamp("finished_at", { withTimezone: true }),
+    /**
+     * When the player skipped it, unsolved. A skipped game is not offered back as
+     * the game in progress; playing a move in it again clears this.
+     */
+    skippedAt: timestamp("skipped_at", { withTimezone: true }),
   },
   (t) => [unique().on(t.userId, t.puzzleId)],
 );

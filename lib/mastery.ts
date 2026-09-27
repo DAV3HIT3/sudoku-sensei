@@ -75,3 +75,18 @@ export function dailyPuzzle(ids: number[], now: number): number {
   const local = now - new Date(now).getTimezoneOffset() * 60_000;
   return ids[Math.floor(local / DAY) % ids.length];
 }
+
+export type GameStatus = "solved" | "playing" | "skipped";
+
+/**
+ * The puzzle after `current` in its group: the next one, wrapping round, that is
+ * not solved, preferring any not skipped. Never `current` itself; null when every
+ * other puzzle in the group is solved.
+ */
+export function nextInGroup(ids: number[], status: (id: number) => GameStatus | undefined, current: number): number | null {
+  const i = ids.indexOf(current);
+  const order = i < 0 ? ids : [...ids.slice(i + 1), ...ids.slice(0, i)];
+  return order.find((id) => status(id) === undefined || status(id) === "playing")
+    ?? order.find((id) => status(id) === "skipped")
+    ?? null;
+}

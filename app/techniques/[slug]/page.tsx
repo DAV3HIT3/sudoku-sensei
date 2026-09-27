@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Prose from "@/components/Prose";
 import PuzzleLinks from "@/components/PuzzleLinks";
 import { gameStatuses } from "@/lib/games";
+import type { GameStatus } from "@/lib/mastery";
 import { drillStats, lessonStage } from "@/lib/progress";
 import { TIERS } from "@/lib/sudoku/solver";
 import { examplesOf, getTechnique, listTechniques, puzzlesNeeding } from "@/lib/techniques";
@@ -16,7 +17,7 @@ export default async function Technique({ params }: PageProps<"/techniques/[slug
   const [all, examples, practice, user] = await Promise.all([listTechniques(), examplesOf(slug), puzzlesNeeding(t.sort), currentUser()]);
   const [status, lesson, stats] = user
     ? await Promise.all([gameStatuses(user.id), lessonStage(user.id, slug), drillStats(user.id, slug)])
-    : [new Map<number, "solved" | "playing">(), { stage: 0, done: false }, new Map()];
+    : [new Map<number, GameStatus>(), { stage: 0, done: false }, new Map()];
   const score = stats.get(slug);
   const prev = all.find((x) => x.sort === t.sort - 1), next = all.find((x) => x.sort === t.sort + 1);
 

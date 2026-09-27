@@ -64,7 +64,7 @@ export async function training(userId: number, now = Date.now()) {
     db.select({ technique: drills.technique, correct: drillAttempts.correct, at: drillAttempts.createdAt })
       .from(drillAttempts).innerJoin(drills, eq(drills.id, drillAttempts.drillId))
       .where(eq(drillAttempts.userId, userId)).orderBy(desc(drillAttempts.createdAt)),
-    db.select({ puzzleId: games.puzzleId, difficulty: puzzles.difficulty, hints: games.hints, finishedAt: games.finishedAt, updatedAt: games.updatedAt })
+    db.select({ puzzleId: games.puzzleId, difficulty: puzzles.difficulty, hints: games.hints, finishedAt: games.finishedAt, skippedAt: games.skippedAt, updatedAt: games.updatedAt })
       .from(games).innerJoin(puzzles, eq(puzzles.id, games.puzzleId))
       .where(eq(games.userId, userId)).orderBy(desc(games.updatedAt)),
     lessonsDone(userId),
@@ -95,7 +95,8 @@ export async function training(userId: number, now = Date.now()) {
     };
   });
 
-  const inProgress = played.find((g) => !g.finishedAt)?.puzzleId ?? null;
+  // The most recent game neither solved nor skipped.
+  const inProgress = played.find((g) => !g.finishedAt && !g.skippedAt)?.puzzleId ?? null;
   const daily = dailyPuzzle(all.filter((p) => p.difficulty !== null).map((p) => p.id), now);
   return {
     techniques,

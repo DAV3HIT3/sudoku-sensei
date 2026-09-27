@@ -1,6 +1,6 @@
 "use server";
 
-import { getGame, saveGame } from "@/lib/games";
+import { getGame, saveGame, skipGame } from "@/lib/games";
 import { currentUser } from "@/lib/user";
 
 async function player() {
@@ -12,6 +12,11 @@ async function player() {
 export async function save(puzzleId: number, state: unknown, hints: unknown) {
   if (!Number.isInteger(puzzleId)) throw new Error("bad puzzle id");
   return saveGame((await player()).id, puzzleId, state, hints);
+}
+
+export async function skip(puzzleId: number) {
+  if (!Number.isInteger(puzzleId)) throw new Error("bad puzzle id");
+  await skipGame((await player()).id, puzzleId);
 }
 
 export async function load(puzzleId: number) {

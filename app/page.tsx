@@ -3,6 +3,7 @@ import InfoLink from "@/components/InfoLink";
 import NextCard from "@/components/NextCard";
 import PuzzlePicker from "@/components/PuzzlePicker";
 import { gameStatuses } from "@/lib/games";
+import type { GameStatus } from "@/lib/mastery";
 import { training } from "@/lib/progress";
 import { listPuzzles } from "@/lib/puzzles";
 import { TECHNIQUES, TIER_LIST, TIERS } from "@/lib/sudoku/solver";
@@ -11,7 +12,7 @@ import { currentUser } from "@/lib/user";
 export default async function Home() {
   const user = await currentUser();
   const puzzles = await listPuzzles();
-  const status = user ? await gameStatuses(user.id) : new Map<number, "solved" | "playing">();
+  const status = user ? await gameStatuses(user.id) : new Map<number, GameStatus>();
   // Grouped by the hardest technique each needs, easiest first (the list is sorted that way).
   const groups = Map.groupBy(puzzles, (p) => p.difficulty ?? -1);
   const plan = user ? await training(user.id) : null;
