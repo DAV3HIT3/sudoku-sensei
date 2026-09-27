@@ -1,18 +1,19 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { asc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { drills, puzzles, techniques } from "@/db/schema";
+import { drills, meta, puzzles, techniques } from "@/db/schema";
 import { format, parse, solve } from "@/lib/sudoku/grid";
 import { grade, TECHNIQUES } from "@/lib/sudoku/solver";
 
 /**
  * Brings the database in line with the engine and content/puzzles.txt: the
  * technique catalog, every puzzle with its grade, and its drills. Runs on
- * start-up. Everything is regraded each time, so an engine change reaches stored
- * grades with the next deploy.
+ * start-up. Grading every puzzle takes seconds, so it happens only when the
+ * solver's source or the puzzle file has changed since the last time (a
+ * fingerprint in the meta table); the technique text is refreshed every time.
  */
-// ponytail: regrades every puzzle on every start (about a second for a few hundred); stamp an engine version if it gets slow.
 export async function seedPuzzles(): Promise<void> {
   const db = getDb();
   const rows = await Promise.all(TECHNIQUES.map(async (t, sort) => {
@@ -28,6 +29,11 @@ export async function seedPuzzles(): Promise<void> {
     });
 
   const text = await readFile(path.join(process.cwd(), "content", "puzzles.txt"), "utf8");
+  // ENGINE_HASH comes from next.config.ts; without it (a bare test run) always regrade.
+  const fingerprint = process.env.ENGINE_HASH && createHash("sha256").update(process.env.ENGINE_HASH).update(text).digest("hex");
+  const [last] = await db.select({ value: meta.value }).from(meta).where(eq(meta.key, "graded"));
+  if (fingerprint && last?.value === fingerprint) return;
+
   const graded = [];
   for (const line of text.split("\n")) {
     if (!line.trim() || line.startsWith("#")) continue;
@@ -66,11 +72,19 @@ export async function seedPuzzles(): Promise<void> {
         .values(part)
         .onConflictDoUpdate({ target: [drills.puzzleId, drills.technique], set: { position: sql`excluded.position`, step: sql`excluded.step` } });
   }
-  // Puzzles taken out of the file are retired, not deleted: players' games on them stay.
+  // Puzzles taken out of the file are retired: hidden everywhere, but kept while
+  // anyone has a game on one or has answered one of its drills.
   const kept = graded.map((x) => x.row.givens);
   await db.update(puzzles).set({ retired: sql`not (${puzzles.givens} = any(${sql.param(kept)}::char(81)[]))` });
+  // Retired puzzles nobody has played or drilled on go completely, drills and all.
+  await db.execute(sql`delete from puzzles p where p.retired
+    and not exists (select 1 from games g where g.puzzle_id = p.id)
+    and not exists (select 1 from drill_attempts a join drills d on d.id = a.drill_id where d.puzzle_id = p.id)`);
   // Drills for techniques a regrade no longer uses.
   await db.execute(sql`delete from drills d using puzzles p where d.puzzle_id = p.id and not (d.technique = any(p.techniques))`);
+  if (fingerprint)
+    await db.insert(meta).values({ key: "graded", value: fingerprint })
+      .onConflictDoUpdate({ target: meta.key, set: { value: fingerprint } });
 }
 
 /** A technique's write-up without its "# Name" heading (the name comes from the engine). */
