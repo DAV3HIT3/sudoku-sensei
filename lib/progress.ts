@@ -68,7 +68,7 @@ export async function training(userId: number, now = Date.now()) {
       .from(games).innerJoin(puzzles, eq(puzzles.id, games.puzzleId))
       .where(eq(games.userId, userId)).orderBy(desc(games.updatedAt)),
     lessonsDone(userId),
-    db.select({ id: puzzles.id, difficulty: puzzles.difficulty }).from(puzzles).orderBy(asc(puzzles.id)),
+    db.select({ id: puzzles.id, difficulty: puzzles.difficulty }).from(puzzles).where(eq(puzzles.retired, false)).orderBy(asc(puzzles.id)),
   ]);
   const solved = new Set(played.filter((g) => g.finishedAt).map((g) => g.puzzleId));
   const monthAgo = now - 30 * 86_400_000;

@@ -166,7 +166,7 @@ in the app can come later, once seeding is the slow part.
 | 2 Intersections and subsets | Pointing, claiming (box/line), naked pair/triple/quad, hidden pair/triple/quad |
 | 3 Fish and wings | X-Wing, Swordfish, Jellyfish, XY-Wing, XYZ-Wing, W-Wing, Skyscraper, 2-String Kite, Empty Rectangle |
 | 4 Advanced: coloring, chains and uniqueness | Unique Rectangle types 1–4, BUG+1, Simple Coloring, X-Chain, XY-Chain |
-| 5 Advanced | Finned and sashimi fish, AIC, ALS-XZ, Sue de Coq, forcing chains |
+| 5 Expert | Finned and sashimi X-Wing and Swordfish, Sue de Coq, ALS-XZ, AIC, Forcing Chain |
 
 Each technique is in the engine with test fixtures (a position where it applies and
 the exact step expected) before it gets a lesson.
@@ -253,15 +253,22 @@ coloring tool, as the guide and lesson teach it. Simple Coloring drills offer tw
 paint colours for exactly that. Guides live in `content/guides/<sort>-<slug>.md`
 and the `guides` table; 12 Simple Coloring puzzles were generated.
 
-**M7: Chains and uniqueness (tiers 4–5).** In two parts.
+**M7: Chains and uniqueness (tiers 4–5) (done).** In two parts.
 - Tier 4 (done): Unique Rectangle types 1–4 (one technique; its explanation names
   the type), BUG+1, X-Chain and XY-Chain, beside Simple Coloring. Steps can carry
   chain links, drawn over the grid in hints, lessons and drills: solid for strong,
   dashed for weak. 12 puzzles each. A test runs every instance of every technique at
   every position of every stored solve against the solution; it caught a BUG+1 that
   fired on a position that was not a true grave.
-- Tier 5 (next): finned and sashimi fish, AIC, ALS-XZ, Sue de Coq and forcing
-  chains, with their lessons and drills.
+- Tier 5 (done), Expert: Finned X-Wing and Finned Swordfish (sashimi included),
+  Sue de Coq, ALS-XZ, AIC (mixing unit and cell strong links) and Forcing Chain
+  (each candidate of a cell, following singles: a contradiction, or agreement). 12
+  puzzles each; the soundness test checks tier 5 at every tenth position. The
+  slowest single hint on any puzzle takes about 20 ms.
+
+**Puzzle counts.** 6 per Easy and Medium technique (Hidden Quad has 3), 12 for
+the rest. Puzzles taken out of `content/puzzles.txt` are retired, not deleted:
+hidden from lists and picks, but players' games on them stay and still open.
 
 **Later, if wanted.** Public accounts (see Built to go public), in-app content
 editing, streaks and achievements, timed modes, importing puzzles from a string or

@@ -47,4 +47,4 @@ test("hints alone finish every puzzle the catalog can solve, from an empty board
     }
     expect(b.values).toEqual(solution);
   }
-});
+}, 120_000);

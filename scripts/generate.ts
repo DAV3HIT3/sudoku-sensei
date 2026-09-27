@@ -1,7 +1,8 @@
 /**
  * Adds generated puzzles to content/puzzles.txt until each technique is the
- * hardest one needed by `--per` puzzles (default 12), or time runs out
- * (`--minutes`, default 5). Puzzles the catalog cannot solve are thrown away.
+ * hardest one needed by `--per` puzzles (default 12; 6 for the Easy and Medium
+ * tiers, which need fewer), or time runs out (`--minutes`, default 5). Puzzles the
+ * catalog cannot solve are thrown away.
  *
  *   node scripts/generate.ts [--per 12] [--minutes 5]
  *
@@ -16,6 +17,7 @@ const arg = (name: string, dflt: number) => {
   return i > 0 ? Number(process.argv[i + 1]) : dflt;
 };
 const per = arg("per", 12);
+const target = (slug: string) => (TECHNIQUES.find((t) => t.slug === slug)!.tier <= 2 ? Math.min(per, 6) : per);
 const deadline = Date.now() + arg("minutes", 5) * 60_000;
 const file = new URL("../content/puzzles.txt", import.meta.url);
 
@@ -61,7 +63,7 @@ for (const g of have) {
 
 const today = new Date().toISOString().slice(0, 10);
 let tried = 0, added = 0;
-while (Date.now() < deadline && [...count.values()].some((n) => n < per)) {
+while (Date.now() < deadline && [...count].some(([slug, n]) => n < target(slug))) {
   tried++;
   // Mostly minimal puzzles, which run harder; some stopped early, which run easier;
   // a few nearly complete, the only way to get puzzles that need nothing past a Full House.
@@ -73,11 +75,11 @@ while (Date.now() < deadline && [...count.values()].some((n) => n < per)) {
   const r = grade(puzzle);
   if (!r.solved || r.difficulty < 0) continue;
   const slug = TECHNIQUES[r.difficulty].slug;
-  if (count.get(slug)! >= per) continue;
+  if (count.get(slug)! >= target(slug)) continue;
   count.set(slug, count.get(slug)! + 1);
   have.add(key);
   appendFileSync(file, `${key} Generated ${today}\n`);
   added++;
 }
 console.log(`tried ${tried}, added ${added}`);
-for (const [slug, n] of count) console.log(`${String(n).padStart(4)}  ${slug}${n < per ? "  (short)" : ""}`);
+for (const [slug, n] of count) console.log(`${String(n).padStart(4)}  ${slug}${n < target(slug) ? "  (short)" : ""}`);

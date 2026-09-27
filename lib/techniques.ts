@@ -54,4 +54,4 @@ export async function getDrill(id: number) {
 
 /** Puzzles whose hardest step is this technique. */
 export const puzzlesNeeding = (sort: number) =>
-  getDb().select({ id: puzzles.id }).from(puzzles).where(eq(puzzles.difficulty, sort)).orderBy(asc(puzzles.id));
+  getDb().select({ id: puzzles.id }).from(puzzles).where(and(eq(puzzles.difficulty, sort), eq(puzzles.retired, false))).orderBy(asc(puzzles.id));

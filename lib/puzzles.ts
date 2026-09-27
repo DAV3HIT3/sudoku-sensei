@@ -66,6 +66,9 @@ export async function seedPuzzles(): Promise<void> {
         .values(part)
         .onConflictDoUpdate({ target: [drills.puzzleId, drills.technique], set: { position: sql`excluded.position`, step: sql`excluded.step` } });
   }
+  // Puzzles taken out of the file are retired, not deleted: players' games on them stay.
+  const kept = graded.map((x) => x.row.givens);
+  await db.update(puzzles).set({ retired: sql`not (${puzzles.givens} = any(${sql.param(kept)}::char(81)[]))` });
   // Drills for techniques a regrade no longer uses.
   await db.execute(sql`delete from drills d using puzzles p where d.puzzle_id = p.id and not (d.technique = any(p.techniques))`);
 }
@@ -83,6 +86,7 @@ export const listPuzzles = () =>
   getDb()
     .select({ id: puzzles.id, givens: puzzles.givens, source: puzzles.source, difficulty: puzzles.difficulty })
     .from(puzzles)
+    .where(eq(puzzles.retired, false))
     .orderBy(sql`${puzzles.difficulty} nulls last`, asc(puzzles.id));
 
 export async function getPuzzle(id: number) {

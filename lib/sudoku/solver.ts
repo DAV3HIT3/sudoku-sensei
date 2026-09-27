@@ -660,6 +660,252 @@ function* bugPlusOne(p: Position): Generator<Step> {
   });
 }
 
+// ---- Tier 5 -----------------------------------------------------------------
+
+/**
+ * Finned fish of size n: n base lines whose spots for a digit fall in n cover lines,
+ * except a few extra spots (fins) all in one box. Either a fin holds the digit, or
+ * the plain fish does; a cell in a cover line, outside the base lines, that is also
+ * in the fins' box loses the digit either way. Sashimi when a base line has only
+ * one spot left inside the cover lines.
+ */
+const finnedFish = (n: number, technique: string, fish: string): Finder => function* (p) {
+  for (const d of DIGITS)
+    for (const [bases, covers] of [[ROWS, COLS], [COLS, ROWS]]) {
+      const lines = bases.filter((l) => { const k = spots(p, l, d).length; return k >= 1 && k <= n + 3; });
+      for (const base of combinations(lines, n)) {
+        const baseCells = base.flatMap((l) => spots(p, l, d));
+        const touched = [...new Set(baseCells.map((c) => covers.find((u) => UNITS[u].includes(c))!))];
+        for (const cover of combinations(touched, n)) {
+          const inCover = (c: number) => cover.some((u) => UNITS[u].includes(c));
+          const fins = baseCells.filter((c) => !inCover(c));
+          if (!fins.length || new Set(fins.map(box)).size !== 1) continue;
+          if (!base.every((l) => spots(p, l, d).some(inCover))) continue;
+          const finBox = 18 + box(fins[0]);
+          const eliminate = cover.flatMap((u) => spots(p, u, d))
+            .filter((c) => !baseCells.includes(c) && UNITS[finBox].includes(c))
+            .map((cell) => ({ cell, digit: d }));
+          if (!eliminate.length) continue;
+          const sashimi = base.some((l) => spots(p, l, d).filter(inCover).length === 1);
+          yield step(technique, {
+            eliminate,
+            highlight: { cells: baseCells, candidates: cands(p, baseCells.filter(inCover), [d]), others: cands(p, fins, [d]) },
+            why: `In ${linesName(base)}, ${d} fits only in ${linesName(cover)}, apart from the fin${fins.length > 1 ? "s" : ""} ${cellList(fins)} in box ${box(fins[0]) + 1}${sashimi ? " (a sashimi: one line has a single cell left in them)" : ""}. Either a fin is ${d}, or the ${fish} holds and ${linesName(cover)} get their ${d} from ${linesName(base)}. A cell in one of ${linesName(cover)}, and also in box ${box(fins[0]) + 1}, loses ${d} either way.`,
+          });
+        }
+      }
+    }
+};
+
+/**
+ * Sue de Coq: two or three empty cells where a box meets a line, holding between
+ * them exactly two more digits than cells. With a two-candidate cell in the line
+ * and another in the box, from those digits and sharing none, every one of the
+ * digits is placed among these cells. So the line cell's digits leave the rest of
+ * the line, the box cell's the rest of the box, and any other digit both.
+ */
+function* sueDeCoq(p: Position): Generator<Step> {
+  for (let b = 0; b < 9; b++)
+    for (const line of [...ROWS, ...COLS]) {
+      const inter = UNITS[18 + b].filter((c) => UNITS[line].includes(c) && !p.values[c]);
+      for (const k of [2, 3])
+        for (const core of combinations(inter, k)) {
+          const v = core.reduce((m, c) => m | p.cands[c], 0);
+          if (popcount(v) !== k + 2) continue;
+          const lineCells = UNITS[line].filter((c) => !p.values[c] && !UNITS[18 + b].includes(c) && popcount(p.cands[c]) === 2 && (p.cands[c] & ~v) === 0);
+          const boxCells = UNITS[18 + b].filter((c) => !p.values[c] && !UNITS[line].includes(c) && popcount(p.cands[c]) === 2 && (p.cands[c] & ~v) === 0);
+          for (const l of lineCells)
+            for (const bx of boxCells) {
+              if (p.cands[l] & p.cands[bx]) continue;
+              const rest = v & ~p.cands[l] & ~p.cands[bx];
+              const used = [...core, l, bx];
+              const eliminate = [
+                ...cands(p, UNITS[line].filter((c) => !used.includes(c)), digitsOf(p.cands[l] | rest)),
+                ...cands(p, UNITS[18 + b].filter((c) => !used.includes(c)), digitsOf(p.cands[bx] | rest)),
+              ].filter((e, i, all) => all.findIndex((f) => f.cell === e.cell && f.digit === e.digit) === i);
+              if (eliminate.length)
+                yield step("sue-de-coq", {
+                  eliminate,
+                  highlight: { cells: used, candidates: cands(p, [...core, l], digitsOf(v)), others: cands(p, [bx], digitsOf(v)) },
+                  why: `${cellList(core)}, where box ${b + 1} meets ${unitName(line)}, hold ${list(digitsOf(v))} between them: ${k} cells, ${k + 2} digits. With ${cellName(l)} ${setOf(p.cands[l])} in ${unitName(line)} and ${cellName(bx)} ${setOf(p.cands[bx])} in box ${b + 1}, those ${k + 2} cells hold all ${k + 2} digits. So ${list(digitsOf(p.cands[l]))} must be among these cells in ${unitName(line)}, ${list(digitsOf(p.cands[bx]))} among these cells in box ${b + 1}${rest ? `, and ${list(digitsOf(rest))} in the meeting cells` : ""}.`,
+                });
+            }
+        }
+    }
+}
+
+/** Almost locked sets: n cells of one unit holding n+1 digits between them (n up to 4). */
+function almostLockedSets(p: Position) {
+  const found = new Map<string, { cells: number[]; mask: number; u: number }>();
+  for (let u = 0; u < 27; u++) {
+    const open = UNITS[u].filter((c) => !p.values[c]);
+    for (let n = 1; n <= Math.min(4, open.length - 1); n++)
+      for (const cells of combinations(open, n)) {
+        const mask = cells.reduce((m, c) => m | p.cands[c], 0);
+        const key = [...cells].sort((a, b) => a - b).join(",");
+        if (popcount(mask) === n + 1 && !found.has(key)) found.set(key, { cells, mask, u });
+      }
+  }
+  return [...found.values()];
+}
+
+/**
+ * ALS-XZ: two almost locked sets A and B that share no cell, and a digit X in both
+ * where every X of A sees every X of B (so at most one set holds X). The other set
+ * then locks, so for any other shared digit Z, one of the sets holds it: a cell
+ * seeing every Z of both sets cannot be Z.
+ */
+function* alsXz(p: Position): Generator<Step> {
+  const sets = almostLockedSets(p);
+  const where = (cells: number[], d: number) => cells.filter((c) => has(p, c, d));
+  for (const [a, b] of combinations(sets, 2)) {
+    if (a.cells.some((c) => b.cells.includes(c))) continue;
+    const common = digitsOf(a.mask & b.mask);
+    for (const x of common) {
+      const [ax, bx] = [where(a.cells, x), where(b.cells, x)];
+      if (!ax.every((c) => bx.every((e) => sees(c, e)))) continue;
+      for (const z of common) {
+        if (z === x) continue;
+        const zs = [...where(a.cells, z), ...where(b.cells, z)];
+        const eliminate = seeingAll(p, zs, z, [...a.cells, ...b.cells]);
+        if (eliminate.length)
+          yield step("als-xz", {
+            eliminate,
+            highlight: { cells: [...a.cells, ...b.cells], candidates: cands(p, a.cells, digitsOf(a.mask)), others: cands(p, b.cells, digitsOf(b.mask)) },
+            why: `${cellList(a.cells)} hold ${list(digitsOf(a.mask))}, and ${cellList(b.cells)} hold ${list(digitsOf(b.mask))}: each one digit more than cells. Every ${x} in the first sees every ${x} in the second, so at most one of them has ${x}, and the other is then locked to its remaining digits. Either way one of them holds ${z}, so a cell that sees every ${z} in both cannot be ${z}.`,
+          });
+      }
+    }
+  }
+}
+
+/**
+ * AIC (alternating inference chain): candidates joined by links that alternate
+ * strong and weak, starting and ending strong. Strong: a digit's only two cells in
+ * a unit, or the two candidates of a two-candidate cell. Weak: the same digit in
+ * cells that see each other, or two digits in one cell. One end or the other is
+ * true. Same digit at both ends: a cell seeing both loses it. Different digits: if
+ * the ends see each other, each loses the other's digit; in one cell, that cell
+ * keeps only those two. Only chains using both kinds of strong link count here;
+ * the rest are X-Chains and XY-Chains.
+ */
+function* aic(p: Position): Generator<Step> {
+  const node = (cell: number, digit: number) => cell * 10 + digit;
+  const [cellOf, digitOf] = [(n: number) => Math.floor(n / 10), (n: number) => n % 10];
+  const name = (n: number) => `(${digitOf(n)})${cellName(cellOf(n))}`;
+  const conj = (n: number) => {
+    const out: number[] = [];
+    for (let u = 0; u < 27; u++) {
+      if (!UNITS[u].includes(cellOf(n))) continue;
+      const s = spots(p, u, digitOf(n));
+      if (s.length === 2) out.push(node(s[0] === cellOf(n) ? s[1] : s[0], digitOf(n)));
+    }
+    return out;
+  };
+  const inCell = (n: number) => digitsOf(p.cands[cellOf(n)] & ~(1 << digitOf(n))).map((d) => node(cellOf(n), d));
+  const weak = (n: number) => [
+    ...PEERS[cellOf(n)].filter((c) => has(p, c, digitOf(n))).map((c) => node(c, digitOf(n))),
+    ...inCell(n),
+  ];
+  // Strong links, remembering which kind.
+  const strong = (n: number) => [
+    ...conj(n).map((m) => ({ m, kind: "unit" as const })),
+    ...(popcount(p.cands[cellOf(n)]) === 2 ? inCell(n).map((m) => ({ m, kind: "cell" as const })) : []),
+  ];
+  for (let start = 0; start < 81; start++)
+    for (const d of digitsOf(p.cands[start])) {
+      const s = node(start, d);
+      const queue = strong(s).map(({ m, kind }) => ({ path: [s, m], kinds: [kind], strongLast: true }));
+      const seen = new Set(queue.map((q) => q.path[1] * 2 + 1));
+      for (let i = 0; i < queue.length; i++) {
+        const { path, kinds, strongLast } = queue[i];
+        const e = path.at(-1)!;
+        if (strongLast && path.length >= 4 && kinds.includes("unit") && kinds.includes("cell")) {
+          const [sc, sd, ec, ed] = [start, d, cellOf(e), digitOf(e)];
+          const cellsOnPath = path.map(cellOf);
+          const eliminate =
+            sd === ed && sc !== ec ? seeingAll(p, [sc, ec], sd, cellsOnPath)
+            : sd !== ed && sc === ec ? digitsOf(p.cands[sc] & ~(1 << sd) & ~(1 << ed)).map((digit) => ({ cell: sc, digit }))
+            : sd !== ed && sees(sc, ec) ? [...(has(p, sc, ed) ? [{ cell: sc, digit: ed }] : []), ...(has(p, ec, sd) ? [{ cell: ec, digit: sd }] : [])]
+            : [];
+          if (eliminate.length) {
+            const links = path.slice(1).map((m, k): Link => ({
+              from: { cell: cellOf(path[k]), digit: digitOf(path[k]) }, to: { cell: cellOf(m), digit: digitOf(m) }, strong: k % 2 === 0,
+            }));
+            const chain = path.map((n, k) => (k === 0 ? name(n) : `${k % 2 ? " = " : " - "}${name(n)}`)).join("");
+            yield step("aic", {
+              eliminate,
+              highlight: { cells: [...new Set(cellsOnPath)], candidates: path.map((n) => ({ cell: cellOf(n), digit: digitOf(n) })), links },
+              why: `A chain of candidates, (digit)cell: ${chain}. At "=" at least one of the two is true; at "-" at most one is. So ${name(s)} or ${name(e)} is true, ${
+                sd === ed ? `and a cell that sees both cannot be ${sd}.`
+                : sc === ec ? `so ${cellName(sc)} is ${sd} or ${ed} and nothing else.`
+                : `and since those cells see each other, neither can take the other's digit.`}`,
+            });
+          }
+        }
+        if (path.length >= 10) continue;
+        const nexts = strongLast ? weak(e).map((m) => ({ m, kind: null })) : strong(e);
+        for (const { m, kind } of nexts) {
+          const key = m * 2 + (strongLast ? 0 : 1);
+          if (path.includes(m) || seen.has(key)) continue;
+          seen.add(key);
+          queue.push({ path: [...path, m], kinds: kind ? [...kinds, kind] : kinds, strongLast: !strongLast });
+        }
+      }
+    }
+}
+
+/**
+ * Suppose a digit is in a cell and follow only singles. `broken` names where that
+ * runs into a contradiction: a cell with no candidates, or a digit with no place
+ * left in a unit.
+ */
+function followSingles(p: Position, cell: number, digit: number): { q: Position; broken: string | null } {
+  let q = apply(p, step("", { place: [{ cell, digit }], why: "" }));
+  for (let i = 0; i < 81; i++) {
+    for (let c = 0; c < 81; c++) if (!q.values[c] && !q.cands[c]) return { q, broken: `${cellName(c)} has no candidate left` };
+    for (let u = 0; u < 27; u++)
+      for (const d of DIGITS)
+        if (!UNITS[u].some((c) => q.values[c] === d) && !spots(q, u, d).length) return { q, broken: `${unitName(u)} has nowhere left for ${d}` };
+    const s = nakedSingle(q).next().value ?? hiddenSingle(q).next().value;
+    if (!s) break;
+    q = apply(q, s);
+  }
+  return { q, broken: null };
+}
+
+/**
+ * Forcing Chain: try each candidate of a cell with two or three, following only
+ * singles. If one leads to a contradiction, the cell is not that digit. If every
+ * one puts the same digit in some other cell, that digit goes there.
+ */
+function* forcingChain(p: Position): Generator<Step> {
+  const cells = Array.from({ length: 81 }, (_, c) => c)
+    .filter((c) => !p.values[c] && popcount(p.cands[c]) <= 3)
+    .sort((a, b) => popcount(p.cands[a]) - popcount(p.cands[b]));
+  for (const c of cells) {
+    const ds = digitsOf(p.cands[c]);
+    const branches = ds.map((d) => ({ d, ...followSingles(p, c, d) }));
+    for (const b of branches)
+      if (b.broken)
+        yield step("forcing-chain", {
+          eliminate: [{ cell: c, digit: b.d }],
+          highlight: { cells: [c], candidates: [{ cell: c, digit: b.d }] },
+          why: `Suppose ${cellName(c)} is ${b.d} and follow only singles from there: ${b.broken}. So ${cellName(c)} is not ${b.d}.`,
+        });
+    if (branches.some((b) => b.broken)) continue;
+    for (let t = 0; t < 81; t++) {
+      const v = branches[0].q.values[t];
+      if (t === c || p.values[t] || !v || !branches.every((b) => b.q.values[t] === v)) continue;
+      yield step("forcing-chain", {
+        place: [{ cell: t, digit: v }],
+        highlight: { cells: [c, t], candidates: cands(p, [c], ds) },
+        why: `${cellName(c)} is ${list(ds.map(String)).replace(/ and /, " or ")}. Try each and follow only singles: every one puts ${v} in ${cellName(t)}. So ${v} goes there.`,
+      });
+    }
+  }
+}
+
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 
 // ---- The catalog ------------------------------------------------------------
@@ -704,9 +950,15 @@ export const TECHNIQUES: Technique[] = [
   t("simple-coloring", "Simple Coloring", 4, simpleColoring),
   t("x-chain", "X-Chain", 4, xChain),
   t("xy-chain", "XY-Chain", 4, xyChain),
+  t("finned-x-wing", "Finned X-Wing", 5, finnedFish(2, "finned-x-wing", "X-Wing")),
+  t("finned-swordfish", "Finned Swordfish", 5, finnedFish(3, "finned-swordfish", "Swordfish")),
+  t("sue-de-coq", "Sue de Coq", 5, sueDeCoq),
+  t("als-xz", "ALS-XZ", 5, alsXz),
+  t("aic", "AIC", 5, aic),
+  t("forcing-chain", "Forcing Chain", 5, forcingChain),
 ];
 
-export const TIERS = ["", "Easy", "Medium", "Hard", "Advanced"];
+export const TIERS = ["", "Easy", "Medium", "Hard", "Advanced", "Expert"];
 /** The tiers in use, easiest first. */
 export const TIER_LIST = [...new Set(TECHNIQUES.map((t) => t.tier))];
 
