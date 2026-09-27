@@ -1,6 +1,7 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { games, type GameState, type HintTaken } from "@/db/schema";
+import { games, puzzles, type GameState, type HintTaken } from "@/db/schema";
+import { nextInGroup, type GameStatus } from "@/lib/mastery";
 import { getPuzzle } from "@/lib/puzzles";
 import { boardOf } from "@/lib/sudoku/grid";
 import { TECHNIQUES } from "@/lib/sudoku/solver";
@@ -37,6 +38,8 @@ export async function saveGame(userId: number, puzzleId: number, state: unknown,
         state: clean,
         hints,
         updatedAt: sql`now()`,
+        // Playing a move in a skipped game takes it up again.
+        skippedAt: null,
         // Keeps the first finish; a restart (unsolved again) clears it.
         finishedAt: solved ? sql`coalesce(${games.finishedAt}, now())` : null,
       },
@@ -53,11 +56,48 @@ function hintsOf(x: unknown): HintTaken[] | null {
   return ok ? x.map((h) => ({ technique: h.technique, level: h.level })) : null;
 }
 
-/** Each puzzle this player has touched: solved or still in progress. */
-export async function gameStatuses(userId: number): Promise<Map<number, "solved" | "playing">> {
+/** Each puzzle this player has touched: solved, skipped, or still in progress. */
+export async function gameStatuses(userId: number): Promise<Map<number, GameStatus>> {
   const rows = await getDb()
-    .select({ puzzleId: games.puzzleId, finishedAt: games.finishedAt })
+    .select({ puzzleId: games.puzzleId, finishedAt: games.finishedAt, skippedAt: games.skippedAt })
     .from(games)
     .where(eq(games.userId, userId));
-  return new Map(rows.map((r) => [r.puzzleId, r.finishedAt ? "solved" : "playing"]));
+  return new Map(rows.map((r) => [r.puzzleId, r.finishedAt ? "solved" : r.skippedAt ? "skipped" : "playing"]));
+}
+
+/**
+ * Marks a puzzle skipped, starting a game on it if there is none yet so the skip
+ * is remembered. A solved game stays solved.
+ */
+export async function skipGame(userId: number, puzzleId: number): Promise<void> {
+  const puzzle = await getPuzzle(puzzleId);
+  if (!puzzle) throw new Error("no such puzzle");
+  await getDb()
+    .insert(games)
+    .values({ userId, puzzleId, state: { values: puzzle.givens, notes: Array(81).fill(0) }, skippedAt: new Date() })
+    .onConflictDoUpdate({
+      target: [games.userId, games.puzzleId],
+      set: { skippedAt: sql`case when ${games.finishedAt} is null then now() end` },
+    });
+}
+
+/**
+ * The puzzle to go to after this one: the next unsolved one in its group (same
+ * hardest technique), named the way the home page numbers it, or null when the
+ * group is done.
+ */
+export async function nextPuzzle(userId: number, puzzleId: number): Promise<{ id: number; label: string } | null> {
+  const puzzle = await getPuzzle(puzzleId);
+  if (!puzzle) return null;
+  const group = await getDb()
+    .select({ id: puzzles.id })
+    .from(puzzles)
+    .where(and(puzzle.difficulty === null ? isNull(puzzles.difficulty) : eq(puzzles.difficulty, puzzle.difficulty), eq(puzzles.retired, false)))
+    .orderBy(asc(puzzles.id));
+  const ids = group.map((p) => p.id);
+  const status = await gameStatuses(userId);
+  const id = nextInGroup(ids, (x) => status.get(x), puzzleId);
+  if (id === null) return null;
+  const name = puzzle.difficulty === null ? "Beyond the lessons" : TECHNIQUES[puzzle.difficulty].name;
+  return { id, label: `${name} · puzzle ${ids.indexOf(id) + 1}` };
 }

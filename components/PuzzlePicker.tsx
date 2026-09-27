@@ -2,19 +2,22 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import type { GameStatus } from "@/lib/mastery";
 
-type Status = "solved" | "playing" | undefined;
+type Status = GameStatus | undefined;
 
 /**
  * One group's puzzles as "3 of 12 complete", a numbered dropdown (• in progress,
- * ✓ solved) and a button, laid out as the last three cells of the row its
- * parent starts. Starts on the game in
- * progress, else the first unsolved one, else the first.
+ * ↷ skipped, ✓ solved) and a button, laid out as the last three cells of the row
+ * its parent starts. Starts on the game in progress, else the first one neither
+ * solved nor skipped, else the first skipped, else the first.
  */
 export default function PuzzlePicker({ label, puzzles }: { label: string; puzzles: { id: number; status: Status }[] }) {
   const solved = puzzles.filter((p) => p.status === "solved").length;
   const playing = puzzles.findIndex((p) => p.status === "playing");
-  const [i, setI] = useState(playing >= 0 ? playing : Math.max(0, puzzles.findIndex((p) => p.status !== "solved")));
+  const fresh = puzzles.findIndex((p) => !p.status);
+  const skipped = puzzles.findIndex((p) => p.status === "skipped");
+  const [i, setI] = useState(Math.max(0, playing >= 0 ? playing : fresh >= 0 ? fresh : skipped));
   const p = puzzles[i];
   return (
     <>
@@ -30,7 +33,7 @@ export default function PuzzlePicker({ label, puzzles }: { label: string; puzzle
       >
         {puzzles.map((q, n) => (
           <option key={q.id} value={n}>
-            {n + 1}{q.status === "solved" ? " ✓" : q.status === "playing" ? " •" : ""}
+            {n + 1}{q.status === "solved" ? " ✓" : q.status === "playing" ? " •" : q.status === "skipped" ? " ↷" : ""}
           </option>
         ))}
       </select>
@@ -38,7 +41,7 @@ export default function PuzzlePicker({ label, puzzles }: { label: string; puzzle
         href={`/play/${p.id}`}
         className={`rounded py-2 text-center text-sm ${p.status === "solved" ? "bg-zinc-100 dark:bg-zinc-800" : "bg-sky-600 text-white"}`}
       >
-        {p.status === "playing" ? "Continue" : p.status === "solved" ? "Replay" : "Play"}
+        {p.status === "playing" ? "Continue" : p.status === "solved" ? "Replay" : p.status === "skipped" ? "Resume" : "Play"}
       </Link>
     </>
   );

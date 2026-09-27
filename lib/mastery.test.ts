@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { dailyPuzzle, mastery, MASTERED, recommend, type Evidence, type TechniqueState } from "./mastery.ts";
+import { dailyPuzzle, mastery, MASTERED, nextInGroup, recommend, type Evidence, type GameStatus, type TechniqueState } from "./mastery.ts";
 
 const DAY = 86_400_000, NOW = 1_800_000_000_000;
 const ev = (e: Partial<Evidence>): Evidence => ({ drills: [], cleanSolves: 0, hints: [], lastPracticed: NOW, ...e });
@@ -55,4 +55,17 @@ test("daily puzzle changes by the day and is the same all day", () => {
   const today = dailyPuzzle(ids, NOW);
   expect(dailyPuzzle(ids, NOW + 1000)).toBe(today);
   expect(dailyPuzzle(ids, NOW + DAY)).not.toBe(today);
+});
+
+test("next in a group: the following unsolved puzzle, wrapping round, skipped ones last", () => {
+  const s = new Map<number, GameStatus>([[2, "solved"], [4, "skipped"]]);
+  const at = (id: number) => s.get(id);
+  expect(nextInGroup([1, 2, 3, 4, 5], at, 1)).toBe(3); // 2 is solved
+  expect(nextInGroup([1, 2, 3, 4, 5], at, 3)).toBe(5); // 4 is skipped, so after 5
+  expect(nextInGroup([1, 2, 3, 4, 5], at, 5)).toBe(1); // wraps
+  s.set(1, "solved"); s.set(3, "solved"); s.set(5, "solved");
+  expect(nextInGroup([1, 2, 3, 4, 5], at, 5)).toBe(4); // only the skipped one left
+  s.set(4, "solved");
+  expect(nextInGroup([1, 2, 3, 4, 5], at, 5)).toBeNull();
+  expect(nextInGroup([1, 2, 3], () => undefined, 9)).toBe(1); // current not in the group (retired)
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import GridView, { PAINT_CLASSES, stepMarks, type Mark, type Pick } from "@/components/GridView";
 import type { HintTaken } from "@/db/schema";
@@ -9,7 +10,7 @@ import { erase, paint, PAINTS, place, toggleNote, type Cells } from "@/lib/sudok
 import { box, candidates, col, conflicts, row } from "@/lib/sudoku/grid";
 import { applyHint, hint, hintText, type Hint } from "@/lib/sudoku/hint";
 import type { Link as ChainLink } from "@/lib/sudoku/solver";
-import { load, save } from "./actions";
+import { load, save, skip } from "./actions";
 
 /** What undo steps through: every digit, pencil mark (bitmask per cell) and paint colour. */
 type Snapshot = Cells;
@@ -23,9 +24,12 @@ const fromSaved = (g: SavedGame): Snapshot =>
   ({ values: [...g.state.values].map(Number), notes: g.state.notes, colors: g.state.colors ?? Array(81).fill(0) });
 const toState = (b: Snapshot) => ({ values: b.values.join(""), notes: b.notes, colors: b.colors });
 
-export default function Board({ puzzleId, givens, solution, saved }: {
+export default function Board({ puzzleId, givens, solution, saved, next }: {
   puzzleId: number; givens: string; solution: string; saved: SavedGame | null;
+  /** Where Next and Skip go: the next unsolved puzzle in this group, or null when there is none. */
+  next: { id: number; label: string } | null;
 }) {
+  const router = useRouter();
   const given = [...givens].map(Number);
   const [history, setHistory] = useState<History>(() => ({
     past: [],
@@ -147,6 +151,25 @@ export default function Board({ puzzleId, givens, solution, saved }: {
     if (!solved) commit(erase(history.present, selection, given));
   }, [solved, selection, given, history.present, commit]);
 
+  // Skip: save anything waiting first (a save after the skip would take the game up
+  // again), mark it skipped, and go on.
+  const [skipping, setSkipping] = useState(false);
+  const skipGame = async () => {
+    setSkipping(true);
+    try {
+      const { board, hints } = latest.current;
+      if (board !== synced.current.board || hints !== synced.current.hints) {
+        const g = await save(puzzleId, toState(board), hints);
+        synced.current = { board, hints, updatedAt: g.updatedAt };
+      }
+      await skip(puzzleId);
+      router.push(next ? `/play/${next.id}` : "/");
+    } catch {
+      setSkipping(false);
+      setStatus("error");
+    }
+  };
+
   const fillNotes = () => commit({ ...history.present, notes: candidates(values) });
   const restart = () => { commit(fresh(givens)); setHints([]); };
 
@@ -248,8 +271,13 @@ export default function Board({ puzzleId, givens, solution, saved }: {
       />
 
       {solved ? (
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex flex-wrap items-center justify-center gap-3">
           <p role="status" className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">Solved.</p>
+          {next ? (
+            <Link href={`/play/${next.id}`} className="rounded bg-sky-600 px-4 py-2 text-sm text-white">Next: {next.label}</Link>
+          ) : (
+            <Link href="/" className="rounded bg-sky-600 px-4 py-2 text-sm text-white">Back to puzzles</Link>
+          )}
           <button type="button" onClick={restart} className="rounded bg-zinc-100 px-3 py-2 text-sm dark:bg-zinc-800">Play again</button>
         </div>
       ) : (
@@ -322,7 +350,10 @@ export default function Board({ puzzleId, givens, solution, saved }: {
               Drag or ⌘/Shift-click to select several cells; a digit then toggles that note in all of them.
               Keys: 1–9 to place, Shift+1–9 or N for notes, Shift+arrows to extend, C for colour, Backspace to erase, ⌘Z to undo, H for a hint.
             </p>
-            <button type="button" onClick={restart} className="ml-auto shrink-0 hover:underline">Restart</button>
+            <span className="ml-auto flex shrink-0 gap-4">
+              <button type="button" onClick={skipGame} disabled={skipping} title={next ? `Skip to ${next.label}` : "Skip this puzzle"} className="hover:underline disabled:opacity-50">Skip</button>
+              <button type="button" onClick={restart} className="hover:underline">Restart</button>
+            </span>
           </div>
         </>
       )}

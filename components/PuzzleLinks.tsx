@@ -1,7 +1,8 @@
 import Link from "next/link";
+import type { GameStatus } from "@/lib/mastery";
 
 /** Numbered links to puzzles, coloured by the player's progress on each. */
-export default function PuzzleLinks({ ids, status }: { ids: number[]; status: Map<number, "solved" | "playing"> }) {
+export default function PuzzleLinks({ ids, status }: { ids: number[]; status: Map<number, GameStatus> }) {
   return (
     <ul className="flex flex-wrap gap-2">
       {ids.map((id) => {
@@ -10,7 +11,7 @@ export default function PuzzleLinks({ ids, status }: { ids: number[]; status: Ma
           <li key={id}>
             <Link
               href={`/play/${id}`}
-              aria-label={`Puzzle ${id}${s === "solved" ? ", solved" : s === "playing" ? ", in progress" : ""}`}
+              aria-label={`Puzzle ${id}${s === "solved" ? ", solved" : s === "playing" ? ", in progress" : s === "skipped" ? ", skipped" : ""}`}
               className={`flex h-10 min-w-10 items-center justify-center rounded px-2 text-sm tabular-nums ${
                 s === "solved" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                   : s === "playing" ? "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300"

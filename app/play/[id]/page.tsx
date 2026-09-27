@@ -1,7 +1,7 @@
 import Link from "next/link";
 import InfoLink from "@/components/InfoLink";
 import { notFound } from "next/navigation";
-import { getGame } from "@/lib/games";
+import { getGame, nextPuzzle } from "@/lib/games";
 import { getPuzzle } from "@/lib/puzzles";
 import { TECHNIQUES } from "@/lib/sudoku/solver";
 import { currentUser } from "@/lib/user";
@@ -12,7 +12,7 @@ export default async function Play({ params }: PageProps<"/play/[id]">) {
   const puzzle = /^\d+$/.test(id) ? await getPuzzle(Number(id)) : null;
   if (!puzzle) notFound();
   const user = await currentUser();
-  const saved = user ? await getGame(user.id, puzzle.id) : null;
+  const [saved, next] = user ? await Promise.all([getGame(user.id, puzzle.id), nextPuzzle(user.id, puzzle.id)]) : [null, null];
   const hardest = puzzle.difficulty === null ? null : TECHNIQUES[puzzle.difficulty];
   return (
     <main className="flex flex-1 flex-col items-center gap-4 p-4">
@@ -23,7 +23,9 @@ export default async function Play({ params }: PageProps<"/play/[id]">) {
         </span>
         <InfoLink href={hardest ? `/techniques/${hardest.slug}` : "/techniques"} label={hardest ? `About ${hardest.name}` : "About the techniques"} />
       </header>
-      <Board key={saved?.updatedAt} puzzleId={puzzle.id} givens={puzzle.givens} solution={puzzle.solution} saved={saved} />
+      {/* Keyed by puzzle and save time: going from one puzzle to another (Next, Skip)
+          must give a fresh board, never carry the last one's over. */}
+      <Board key={`${puzzle.id}:${saved?.updatedAt ?? 0}`} puzzleId={puzzle.id} givens={puzzle.givens} solution={puzzle.solution} saved={saved} next={next} />
     </main>
   );
 }
