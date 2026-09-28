@@ -84,8 +84,8 @@ export function popcount(m: number): number {
 
 /**
  * `state` as a saved board of the puzzle with these givens, or null if it is not
- * one: 81 digits keeping every given, 81 pencil-mark masks, and 81 paint colours
- * (0-4; missing in boards saved before colouring existed, which means none).
+ * one: 81 digits keeping every given, 81 pencil-mark masks, and 81 paint colors
+ * (0-4; missing in boards saved before coloring existed, which means none).
  * Guards what the browser sends before it is stored.
  */
 export function boardOf(givens: string, state: unknown): { values: string; notes: number[]; colors: number[] } | null {

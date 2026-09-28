@@ -14,7 +14,7 @@ export type Step = {
   eliminate: Candidate[];
   /**
    * What to draw: the cells the pattern lives in and its key candidates, plus a
-   * second group in another colour where a pattern has two sides (coloring).
+   * second group in another color where a pattern has two sides (coloring).
    */
   highlight: { cells: number[]; candidates: Candidate[]; others?: Candidate[]; links?: Link[] };
   /** Why this instance works, in a sentence or two, naming its cells. */
@@ -267,7 +267,7 @@ function* skyscraper(p: Position): Generator<Step> {
               yield step("skyscraper", {
                 eliminate,
                 highlight: { cells, candidates: cands(p, cells, [d]) },
-                why: `${cap(unitName(a.u))} and ${unitName(b.u)} each have ${d} in just two cells, and ${cellName(baseA)} and ${cellName(baseB)} are in line, so at most one of them is ${d}. So ${cellName(topA)} or ${cellName(topB)} is ${d}, and a cell that sees both cannot be.`,
+                why: `${cap(unitName(a.u))} and ${unitName(b.u)} each have ${d} in just two cells, and ${cellName(baseA)} and ${cellName(baseB)} share ${lines === ROWS ? `column ${col(baseA) + 1}` : `row ${row(baseA) + 1}`}, so at most one of them is ${d}. So ${cellName(topA)} or ${cellName(topB)} is ${d}, and a cell that sees both cannot be ${d}.`,
               });
           }
 }
@@ -290,7 +290,7 @@ function* twoStringKite(p: Position): Generator<Step> {
               yield step("2-string-kite", {
                 eliminate,
                 highlight: { cells, candidates: cands(p, cells, [d]) },
-                why: `${d} has two places in ${unitName(r.u)} and two in ${unitName(c.u)}. ${cellName(rNear)} and ${cellName(cNear)} share a box, so they are not both ${d}: ${cellName(rFar)} or ${cellName(cFar)} is, and a cell that sees both cannot be.`,
+                why: `${d} has two places in ${unitName(r.u)} and two in ${unitName(c.u)}. ${cellName(rNear)} and ${cellName(cNear)} share a box, so they are not both ${d}: ${cellName(rFar)} or ${cellName(cFar)} is, and a cell that sees both cannot be ${d}.`,
               });
           }
 }
@@ -357,7 +357,7 @@ function* xyWing(p: Position): Generator<Step> {
           yield step("xy-wing", {
             eliminate,
             highlight: { cells: [pivot, a, b], candidates: cands(p, [pivot, a, b], DIGITS) },
-            why: `The pivot ${cellName(pivot)} is ${x} or ${y}. If ${x}, ${cellName(a)} ${setOf(ma)} is ${digit}; if ${y}, ${cellName(b)} ${setOf(mb)} is. One of them is ${digit}, so a cell that sees both cannot be.`,
+            why: `The pivot ${cellName(pivot)} is ${x} or ${y}. If ${x}, ${cellName(a)} ${setOf(ma)} is ${digit}; if ${y}, ${cellName(b)} ${setOf(mb)} is. One of them is ${digit}, so a cell that sees both cannot be ${digit}.`,
           });
       }
   }
@@ -380,7 +380,7 @@ function* wWing(p: Position): Generator<Step> {
           yield step("w-wing", {
             eliminate,
             highlight: { cells: [a, b, e, f], candidates: [...cands(p, [a, b], [x, y]), ...cands(p, [e, f], [x])] },
-            why: `${cellName(a)} and ${cellName(b)} are both ${setOf(p.cands[a])}. In ${unitName(u)}, ${x} is at ${cellName(e)} or ${cellName(f)}, and each sees one of them, so they cannot both be ${x}. One of them is ${y}, so a cell that sees both cannot be.`,
+            why: `${cellName(a)} and ${cellName(b)} are both ${setOf(p.cands[a])}. In ${unitName(u)}, ${x} must be at ${cellName(e)} or ${cellName(f)}, and each of those sees one of the two cells, so the two cells cannot both be ${x}. So one of them is ${y}, and a cell that sees both cannot be ${y}.`,
           });
       }
   }
@@ -402,7 +402,7 @@ function* xyzWing(p: Position): Generator<Step> {
         yield step("xyz-wing", {
           eliminate,
           highlight: { cells: [pivot, a, b], candidates: cands(p, [pivot, a, b], DIGITS) },
-          why: `The pivot ${cellName(pivot)} ${setOf(p.cands[pivot])} sees ${cellName(a)} ${setOf(p.cands[a])} and ${cellName(b)} ${setOf(p.cands[b])}. Whatever the pivot is, one of the three is ${digit}, so a cell that sees all three cannot be.`,
+          why: `The pivot ${cellName(pivot)} ${setOf(p.cands[pivot])} sees ${cellName(a)} ${setOf(p.cands[a])} and ${cellName(b)} ${setOf(p.cands[b])}. Whatever the pivot is, one of the three is ${digit}, so a cell that sees all three cannot be ${digit}.`,
         });
     }
   }
@@ -412,11 +412,11 @@ function* xyzWing(p: Position): Generator<Step> {
 
 /**
  * Simple Coloring: link every conjugate pair of a digit (a unit where it has
- * exactly two cells) and colour each connected group in two alternating colours.
- * One colour holds the digit in every one of its cells, the other in none.
- * Color wrap: two cells of one colour see each other, so that colour is the one
+ * exactly two cells) and color each connected group in two alternating colors.
+ * One color holds the digit in every one of its cells, the other in none.
+ * Color wrap: two cells of one color see each other, so that color is the one
  * with none, and all its cells lose the digit. Color trap: a cell outside the
- * group that sees both colours cannot hold the digit.
+ * group that sees both colors cannot hold the digit.
  */
 function* simpleColoring(p: Position): Generator<Step> {
   for (const d of DIGITS) {
@@ -425,25 +425,25 @@ function* simpleColoring(p: Position): Generator<Step> {
       next.set(a, [...(next.get(a) ?? []), b]);
       next.set(b, [...(next.get(b) ?? []), a]);
     }
-    const colour = new Map<number, 0 | 1>();
+    const color = new Map<number, 0 | 1>();
     for (const root of next.keys()) {
-      if (colour.has(root)) continue;
+      if (color.has(root)) continue;
       const group = [root];
-      colour.set(root, 0);
+      color.set(root, 0);
       for (let i = 0; i < group.length; i++)
         for (const n of next.get(group[i])!)
-          if (!colour.has(n)) { colour.set(n, colour.get(group[i]) === 0 ? 1 : 0); group.push(n); }
+          if (!color.has(n)) { color.set(n, color.get(group[i]) === 0 ? 1 : 0); group.push(n); }
       if (group.length < 3) continue;
-      const sides = [group.filter((c) => colour.get(c) === 0), group.filter((c) => colour.get(c) === 1)];
+      const sides = [group.filter((c) => color.get(c) === 0), group.filter((c) => color.get(c) === 1)];
       const highlight = { cells: group, candidates: cands(p, sides[0], [d]), others: cands(p, sides[1], [d]) };
-      const named = `${cellList(sides[0])} in one colour and ${cellList(sides[1])} in the other`;
+      const named = `${cellList(sides[0])} in one color and ${cellList(sides[1])} in the other`;
       for (const side of sides) {
         const clash = [...combinations(side, 2)].find(([a, b]) => sees(a, b));
         if (clash)
           yield step("simple-coloring", {
             eliminate: side.map((cell) => ({ cell, digit: d })),
             highlight,
-            why: `Colour ${d}'s pairs: ${named}. One colour holds every ${d} and the other none. ${cellName(clash[0])} and ${cellName(clash[1])} share a colour and see each other, so that colour cannot be ${d}.`,
+            why: `Color ${d}'s pairs: ${named}. One color holds every ${d} and the other none. ${cellName(clash[0])} and ${cellName(clash[1])} share a color and see each other, so that color cannot be ${d}.`,
           });
       }
       const trapped = seeingAll(p, [], d, group).filter(({ cell }) => sides.every((side) => side.some((c) => sees(cell, c))));
@@ -451,7 +451,7 @@ function* simpleColoring(p: Position): Generator<Step> {
         yield step("simple-coloring", {
           eliminate: trapped,
           highlight,
-          why: `Colour ${d}'s pairs: ${named}. One colour holds every ${d} and the other none, so a cell that sees both colours cannot be ${d}.`,
+          why: `Color ${d}'s pairs: ${named}. One color holds every ${d} and the other none, so a cell that sees both colors cannot be ${d}.`,
         });
     }
   }
@@ -601,7 +601,7 @@ function* uniqueRectangle(p: Position): Generator<Step> {
             yield step("unique-rectangle", {
               eliminate,
               highlight: { ...base, others: cands(p, roof, [c]) },
-              why: `Type 2: ${rect}. ${cellName(roof[0])} and ${cellName(roof[1])} each add only ${c}. Unless one of them is ${c}, ${swap}, so one is ${c} and a cell that sees both cannot be.`,
+              why: `Type 2: ${rect}. ${cellName(roof[0])} and ${cellName(roof[1])} each add only ${c}. Unless one of them is ${c}, ${swap}, so one is ${c} and a cell that sees both cannot be ${c}.`,
             });
         }
         // Type 3: needs two or more extra digits; with one it is type 2.
@@ -656,7 +656,7 @@ function* bugPlusOne(p: Position): Generator<Step> {
   yield step("bug-plus-one", {
     place: [{ cell: c, digit }],
     highlight: { cells: open, candidates: cands(p, [c], [digit]) },
-    why: `Every empty cell has two candidates except ${cellName(c)} ${setOf(p.cands[c])}. Were it not ${digit}, every candidate would appear exactly twice in each row, column and box, a pattern that has two solutions. So ${cellName(c)} is ${digit}.`,
+    why: `Every empty cell has two candidates except ${cellName(c)} ${setOf(p.cands[c])}. Were it not ${digit}, every candidate would appear exactly twice in each row, column and box, a pattern no proper puzzle can reach. So ${cellName(c)} is ${digit}.`,
   });
 }
 

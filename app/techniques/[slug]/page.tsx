@@ -41,7 +41,7 @@ export default async function Technique({ params }: PageProps<"/techniques/[slug
           </h2>
           <p className="text-sm text-zinc-500">
             Key candidates are in <span className="rounded bg-amber-300 px-1 text-amber-950">amber</span>
-            {t.tier >= 4 && <>, the other colour in <span className="rounded bg-violet-300 px-1 text-violet-950">violet</span></>}
+            {t.tier >= 4 && <>, the other color in <span className="rounded bg-violet-300 px-1 text-violet-950">violet</span></>}
             , removals are <span className="font-bold text-red-600 line-through">struck out</span>.
             {examples.some((e) => e.step.highlight.links?.length) && (
               <> Solid <span className="text-rose-600">red</span> lines join cells where one of the two must be true; dashed{" "}
@@ -56,10 +56,10 @@ export default async function Technique({ params }: PageProps<"/techniques/[slug
         <section className="flex flex-col gap-2">
           <h2 className="text-xl font-medium">Drills</h2>
           <p className="text-sm text-zinc-500">
-            Positions from real puzzles where the {t.name} is the next step.
+            Positions from real puzzles where {t.name} is the next step.
             {score ? ` You have ${score.right} of ${score.tried} right.` : ""}
           </p>
-          <Link href={`/techniques/${slug}/drill`} className="self-start rounded bg-sky-600 px-4 py-2 text-white">Practise</Link>
+          <Link href={`/techniques/${slug}/drill`} className="self-start rounded bg-sky-600 px-4 py-2 text-white">Practice</Link>
         </section>
       )}
 

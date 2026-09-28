@@ -6,4 +6,4 @@ Find two ALS that share no cell but share two digits, X and Z, where every X in 
 
 A cell that sees every Z in both sets cannot be Z.
 
-X is called the restricted common digit. The pattern generalises the XY-Wing, whose pincers and pivot are small ALS.
+X is called the restricted common digit. The pattern generalizes the XY-Wing, whose pincers and pivot are small ALS.

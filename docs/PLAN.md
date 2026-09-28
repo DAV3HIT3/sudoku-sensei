@@ -205,7 +205,7 @@ the same instant. Lessons will save their place the same way in M4.
 the engine, drawn on the board, recorded in `games.hints`. A wrong digit or a
 pencil mark that rules out the answer is pointed out before any technique. A page
 per technique (`/techniques/<slug>`): the write-up from `content/techniques`, a
-worked example drawn from a stored drill, and the puzzles that practise it. Info
+worked example drawn from a stored drill, and the puzzles that practice it. Info
 icons link to these pages from the home page groups and from the game page. The
 home page lists every technique with a count of puzzles solved, a numbered picker
 that starts on the game in progress or the next unsolved puzzle, and a button.
@@ -238,19 +238,19 @@ progress page shows each technique's mastery and the evidence behind it.
 - Multi-select on the board: drag, Shift/⌘-click, Shift+arrows. A digit with
   several cells selected adds that pencil mark to all of them, or removes it if
   they all have it; Erase clears them all.
-- A coloring tool: paint cells in four colours to track chains by hand, and
-  focus a digit to see every cell it can still go in. Colours are saved with the
+- A coloring tool: paint cells in four colors to track chains by hand, and
+  focus a digit to see every cell it can still go in. Colors are saved with the
   game and undoable.
-- Simple Coloring in the engine, starting tier 4: colour a digit's conjugate
-  pairs in two alternating colours. Color wrap: two cells of one colour see each
-  other, so that colour is false everywhere. Color trap: a cell seeing both
-  colours cannot hold the digit. Drawn in two colours, with its write-up, lesson,
+- Simple Coloring in the engine, starting tier 4: color a digit's conjugate
+  pairs in two alternating colors. Color wrap: two cells of one color see each
+  other, so that color is false everywhere. Color trap: a cell seeing both
+  colors cannot hold the digit. Drawn in two colors, with its write-up, lesson,
   drills and puzzles.
 - Guides: using notes (every candidate or pairs only, and when), keeping notes
   accurate, and coloring by hand with the tool.
 *Done when* a player can find a Simple Coloring elimination by hand with the
 coloring tool, as the guide and lesson teach it. Simple Coloring drills offer two
-paint colours for exactly that. Guides live in `content/guides/<sort>-<slug>.md`
+paint colors for exactly that. Guides live in `content/guides/<sort>-<slug>.md`
 and the `guides` table; 12 Simple Coloring puzzles were generated.
 
 **M7: Chains and uniqueness (tiers 4–5) (done).** In two parts.

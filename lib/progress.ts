@@ -77,12 +77,12 @@ export async function training(userId: number, now = Date.now()) {
   const techniques = TECHNIQUES.map((t, sort) => {
     const mine = attempts.filter((a) => a.technique === t.slug).map((a) => ({ correct: a.correct, at: a.at.getTime() }));
     const solves = played.filter((g) => g.finishedAt && g.difficulty === sort);
-    const practised = [...mine.slice(0, 1).map((d) => d.at), ...solves.map((g) => g.finishedAt!.getTime())];
+    const practiced = [...mine.slice(0, 1).map((d) => d.at), ...solves.map((g) => g.finishedAt!.getTime())];
     const evidence: Evidence = {
       drills: mine,
       cleanSolves: solves.filter((g) => !g.hints.some((h) => h.technique === t.slug && h.level === 3)).length,
       hints: played.filter((g) => g.updatedAt.getTime() >= monthAgo).flatMap((g) => g.hints.filter((h) => h.technique === t.slug)),
-      lastPracticed: practised.length ? Math.max(...practised) : null,
+      lastPracticed: practiced.length ? Math.max(...practiced) : null,
     };
     return {
       slug: t.slug,

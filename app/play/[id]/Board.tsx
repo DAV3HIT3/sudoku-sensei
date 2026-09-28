@@ -12,7 +12,7 @@ import { applyHint, hint, hintText, type Hint } from "@/lib/sudoku/hint";
 import type { Link as ChainLink } from "@/lib/sudoku/solver";
 import { load, save, skip } from "./actions";
 
-/** What undo steps through: every digit, pencil mark (bitmask per cell) and paint colour. */
+/** What undo steps through: every digit, pencil mark (bitmask per cell) and paint color. */
 type Snapshot = Cells;
 type History = { past: Snapshot[]; present: Snapshot; future: Snapshot[] };
 
@@ -40,7 +40,7 @@ export default function Board({ puzzleId, givens, solution, saved, next }: {
   const [selection, setSelection] = useState<number[]>(() => [given.findIndex((v) => v === 0)].filter((c) => c >= 0));
   const cursor = selection.at(-1) ?? -1;
   const [noteMode, setNoteMode] = useState(false);
-  // Colour mode: the pad picks a digit to focus on instead of entering it, and a palette paints cells.
+  // Color mode: the pad picks a digit to focus on instead of entering it, and a palette paints cells.
   const [colorMode, setColorMode] = useState(false);
   const [focus, setFocus] = useState(0);
   const select = useCallback((c: number, how: Pick) => setSelection((s) =>
@@ -136,7 +136,7 @@ export default function Board({ puzzleId, givens, solution, saved, next }: {
   }, []);
 
   /**
-   * A digit from the pad or keyboard. In colour mode it picks the digit to focus
+   * A digit from the pad or keyboard. In color mode it picks the digit to focus
    * on. With several cells selected, or in notes mode, it toggles that pencil mark
    * in all of them; otherwise it places the digit in the one selected cell.
    */
@@ -241,7 +241,7 @@ export default function Board({ puzzleId, givens, solution, saved, next }: {
     return () => window.removeEventListener("keydown", onKey);
   }, [input, clear, undo, redo, noteMode, takeHint, cursor, select]);
 
-  // The digit to emphasise: the colour-mode focus, else the digit in the one selected cell.
+  // The digit to emphasise: the color-mode focus, else the digit in the one selected cell.
   const selDigit = colorMode && focus ? focus : selection.length === 1 ? values[cursor] : 0;
   const single = selection.length === 1 ? cursor : -1;
 
@@ -261,7 +261,7 @@ export default function Board({ puzzleId, givens, solution, saved, next }: {
           selected: selection.includes(c),
           paint: history.present.colors[c],
           tone: hintCells.has(c) ? "hint"
-            // In colour mode the focus digit lights every cell it is in or could still go in.
+            // In color mode the focus digit lights every cell it is in or could still go in.
             : selDigit !== 0 && (values[c] === selDigit || (colorMode && cellNotes(c) & (1 << selDigit))) ? "same"
             : single >= 0 && (row(c) === row(single) || col(c) === col(single) || box(c) === box(single)) ? "related"
             : undefined,
@@ -318,11 +318,11 @@ export default function Board({ puzzleId, givens, solution, saved, next }: {
           </div>
           {colorMode && (
             <div className="flex flex-col gap-2 rounded border border-zinc-200 p-2 text-sm dark:border-zinc-800">
-              <p className="text-xs text-zinc-500">Tap a digit to see where it can go. Select cells, then a colour to paint them; the same colour again clears it.</p>
+              <p className="text-xs text-zinc-500">Tap a digit to see where it can go. Select cells, then a color to paint them; the same color again clears it.</p>
               <div className="flex items-center gap-2">
                 {Array.from({ length: PAINTS }, (_, i) => i + 1).map((k) => (
                   <button key={k} type="button" onClick={() => commit(paint(history.present, selection, k))}
-                    aria-label={`Paint colour ${k}`}
+                    aria-label={`Paint color ${k}`}
                     className={`h-10 flex-1 rounded border border-zinc-300 dark:border-zinc-700 ${PAINT_CLASSES[k]}`} />
                 ))}
                 <button type="button" onClick={() => commit(paint(history.present, selection, 0))} className="h-10 rounded bg-zinc-100 px-3 dark:bg-zinc-800">Clear</button>
@@ -337,7 +337,7 @@ export default function Board({ puzzleId, givens, solution, saved, next }: {
             </button>
             <button type="button" onClick={() => setColorMode((x) => !x)} aria-pressed={colorMode}
               className={`rounded px-2 py-2 ${colorMode ? "bg-sky-600 text-white" : "bg-zinc-100 dark:bg-zinc-800"}`}>
-              Colour
+              Color
             </button>
             <button type="button" onClick={fillNotes} className="rounded bg-zinc-100 px-2 py-2 dark:bg-zinc-800">Fill notes</button>
             <button type="button" onClick={clear} className="rounded bg-zinc-100 px-2 py-2 dark:bg-zinc-800">Erase</button>
@@ -348,7 +348,7 @@ export default function Board({ puzzleId, givens, solution, saved, next }: {
           <div className="flex items-baseline justify-between gap-4 text-xs text-zinc-500">
             <p className="hidden sm:block">
               Drag or ⌘/Shift-click to select several cells; a digit then toggles that note in all of them.
-              Keys: 1–9 to place, Shift+1–9 or N for notes, Shift+arrows to extend, C for colour, Backspace to erase, ⌘Z to undo, H for a hint.
+              Keys: 1–9 to place, Shift+1–9 or N for notes, Shift+arrows to extend, C for color, Backspace to erase, ⌘Z to undo, H for a hint.
             </p>
             <span className="ml-auto flex shrink-0 gap-4">
               <button type="button" onClick={skipGame} disabled={skipping} title={next ? `Skip to ${next.label}` : "Skip this puzzle"} className="hover:underline disabled:opacity-50">Skip</button>

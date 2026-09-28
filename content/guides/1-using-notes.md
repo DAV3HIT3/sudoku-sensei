@@ -2,7 +2,7 @@
 
 Notes (pencil marks) record where each digit can still go. Two styles work, and most strong solvers use both at different stages.
 
-Pairs only (Snyder notation): early on, mark a digit in a box only when it has exactly two possible cells there. The board stays readable, and those pairs are exactly what the pointing, claiming and hidden-pair techniques look for. Work the singles and these pairs until they run dry.
+Pairs only (Snyder notation): early on, mark a digit in a box only when it has exactly two possible cells there. The board stays readable, and those pairs are what Pointing and Hidden Pairs are made of. Work the singles and these pairs until they run dry.
 
 Every candidate: once the easy moves are gone, fill in every possible digit in every empty cell. The techniques from Naked Pair onward, and all the fish and wings, need the full picture: a missing candidate hides a pattern, and a wrong one creates a false one.
 
