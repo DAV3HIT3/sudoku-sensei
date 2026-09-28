@@ -1,5 +1,4 @@
 import Link from "next/link";
-import InfoLink from "@/components/InfoLink";
 import KnownButton from "@/components/KnownButton";
 import NextCard from "@/components/NextCard";
 import PuzzlePicker from "@/components/PuzzlePicker";
@@ -61,8 +60,10 @@ export default async function Home() {
               {rows.map(({ t, list }) => (
                 <li key={t?.slug ?? "expert"} className="grid grid-cols-[minmax(0,1fr)_auto_4rem_5rem] items-center gap-2 py-2 sm:grid-cols-[minmax(0,1fr)_auto_5rem_6rem]">
                   <span className="flex min-w-0 items-center gap-0.5">
-                    <span title={t?.name} className={`truncate text-sm font-medium sm:text-base ${t && known.has(t.slug) ? "text-zinc-400 dark:text-zinc-500" : ""}`}>{t ? t.name : "Unsolved by the lessons"}</span>
-                    <InfoLink href={t ? `/techniques/${t.slug}` : "/techniques"} label={t ? `About ${t.name}` : "About the techniques"} />
+                    <Link href={t ? `/techniques/${t.slug}` : "/techniques"} title={t ? `About ${t.name}` : "About the techniques"}
+                      className={`truncate text-sm font-medium hover:underline sm:text-base ${t && known.has(t.slug) ? "text-zinc-400 dark:text-zinc-500" : ""}`}>
+                      {t ? t.name : "Unsolved by the lessons"}
+                    </Link>
                     {t && user && <KnownButton slug={t.slug} name={t.name} known={known.has(t.slug)} />}
                   </span>
                   {list.length ? (
