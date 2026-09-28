@@ -29,7 +29,7 @@ test("text at each level", () => {
   const b = fresh(EASY);
   const h = hint(b, SOLUTION);
   expect(h.kind).toBe("step");
-  expect(hintText(h, 1, b)).toMatch(/^Look for a /);
+  expect(hintText(h, 1, b)).toMatch(/^Technique to look for: /);
   expect(hintText(h, 3, b)).toMatch(/\. So place \d in r\dc\d\.$/);
 });
 

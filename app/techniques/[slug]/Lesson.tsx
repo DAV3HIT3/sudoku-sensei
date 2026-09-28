@@ -54,9 +54,9 @@ export default function Lesson({ slug, name, examples, initialStage }: {
   if (stage === end)
     return (
       <div className="flex flex-col gap-3 rounded border border-zinc-200 p-4 dark:border-zinc-800">
-        <p>That is the {name}. Now find some yourself.</p>
+        <p>That is {name}. Now find some yourself.</p>
         <div className="flex gap-3">
-          <Link href={`/techniques/${slug}/drill`} className="rounded bg-sky-600 px-4 py-2 text-white">Practise</Link>
+          <Link href={`/techniques/${slug}/drill`} className="rounded bg-sky-600 px-4 py-2 text-white">Practice</Link>
           <button type="button" onClick={() => go(0)} className="rounded px-4 py-2 hover:underline">Start the lesson again</button>
         </div>
       </div>
@@ -65,14 +65,14 @@ export default function Lesson({ slug, name, examples, initialStage }: {
   const ex = examples[Math.floor(stage / 3)];
   const part = stage % 3;
   const { cells, marks, links } = stepMarks(ex.step);
-  // Stage 2 draws the pattern itself: both colour groups, even where stage 3 will strike them out.
+  // Stage 2 draws the pattern itself: both color groups, even where stage 3 will strike them out.
   const pattern = new Map<string, Mark>([
     ...ex.step.highlight.candidates.map((c): [string, Mark] => [`${c.cell}:${c.digit}`, "key"]),
     ...(ex.step.highlight.others ?? []).map((c): [string, Mark] => [`${c.cell}:${c.digit}`, "key2"]),
   ]);
   const shownMarks = part === 0 ? new Map<string, Mark>() : part === 1 ? pattern : marks;
   const text = [
-    `There is a ${name} here. Look for it, then press Next.`,
+    `${name} applies here. Look for it, then press Next.`,
     ex.step.why,
     `${ex.step.why} So ${actionText(ex.step)}.`,
   ][part];

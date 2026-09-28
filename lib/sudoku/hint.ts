@@ -60,7 +60,7 @@ export function hintText(h: Hint, level: number, board: Board): string {
       `The notes in ${cellName(h.cell)} leave out the digit that belongs there.`,
     ][level - 1];
   const name = TECHNIQUES.find((t) => t.slug === h.step.technique)!.name;
-  if (level === 1) return `Look for a ${name}.`;
+  if (level === 1) return `Technique to look for: ${name}.`;
   if (level === 2) return `${name}: look at the highlighted cells.`;
   return `${name}: ${h.step.why} So ${actionText(h.step)}.`;
 }
@@ -68,10 +68,10 @@ export function hintText(h: Hint, level: number, board: Board): string {
 /** What a step does: "place 4 in r5c6", "remove 7 from r1c5 and r8c5". */
 export function actionText(step: Step): string {
   const place = step.place.map(({ cell, digit }) => `place ${digit} in ${cellName(cell)}`);
-  const cells = new Set(step.eliminate.map((e) => e.cell));
-  // All in one cell: "remove 2 and 5 from r1c4"; otherwise by digit: "remove 7 from r1c5 and r8c5".
-  const remove = cells.size === 1 && step.eliminate.length > 1
-    ? [`remove ${list(step.eliminate.map((e) => e.digit))} from ${cellName(step.eliminate[0].cell)}`]
-    : [...Map.groupBy(step.eliminate, (e) => e.digit)].map(([d, es]) => `remove ${d} from ${list(es.map((e) => cellName(e.cell)))}`);
+  // Whichever reads shorter: by digit ("remove 7 from r1c5 and r8c5") or by cell
+  // ("remove 4, 6 and 8 from r8c5").
+  const byDigit = [...Map.groupBy(step.eliminate, (e) => e.digit)].map(([d, es]) => `remove ${d} from ${list(es.map((e) => cellName(e.cell)))}`);
+  const byCell = [...Map.groupBy(step.eliminate, (e) => e.cell)].map(([c, es]) => `remove ${list(es.map((e) => e.digit))} from ${cellName(c)}`);
+  const remove = byCell.length < byDigit.length ? byCell : byDigit;
   return list([...place, ...remove]);
 }

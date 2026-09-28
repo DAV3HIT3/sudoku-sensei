@@ -26,7 +26,7 @@ export async function examplesOf(slug: string, n = 3): Promise<DrillView[]> {
 }
 
 /**
- * A drill to practise: one this player has not yet got right, at random, and
+ * A drill to practice: one this player has not yet got right, at random, and
  * never the one just answered while there is another.
  */
 export async function nextDrill(userId: number, slug: string, after?: number): Promise<DrillView | null> {

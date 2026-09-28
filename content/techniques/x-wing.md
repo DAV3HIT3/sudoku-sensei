@@ -1,5 +1,7 @@
 # X-Wing
 
-Pick a digit. If in two rows its candidates sit in exactly the same two columns, the digit goes in those rows at two opposite corners of the rectangle they form. Either way, each of the two columns gets the digit in one of those two rows, so remove it from the rest of both columns.
+Pick a digit. Suppose that in two rows it can go in only two cells each, and those cells sit in the same two columns. The four cells form the corners of a rectangle.
 
-The same works with rows and columns swapped. Start by finding rows where a digit has exactly two possible cells.
+Each row must hold the digit somewhere, so it is at one of two diagonally opposite pairs of corners. Either way, each of the two columns gets its copy of the digit from one of those two rows. So no other cell in either column can hold it: remove it from the rest of both columns.
+
+The same works with rows and columns swapped. Start by looking for rows where a digit has exactly two possible cells.

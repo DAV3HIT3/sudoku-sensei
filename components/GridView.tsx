@@ -115,7 +115,7 @@ export default function GridView({ values, notes, look, marks, links = [], selec
             aria-label={`Row ${row(c) + 1}, column ${col(c) + 1}, ${v || "empty"}`}
             className={[
               "relative flex items-center justify-center text-[7cqw] leading-none",
-              // Each side gets exactly one colour: box lines strong (white in dark mode), cell lines grey.
+              // Each side gets exactly one color: box lines strong (white in dark mode), cell lines grey.
               col(c) === 8 ? "" : col(c) % 3 === 2 ? "border-r-2 border-r-foreground dark:border-r-white" : "border-r border-r-zinc-400 dark:border-r-zinc-600",
               row(c) === 8 ? "" : row(c) % 3 === 2 ? "border-b-2 border-b-foreground dark:border-b-white" : "border-b border-b-zinc-400 dark:border-b-zinc-600",
               l.paint ? PAINT_CLASSES[l.paint]

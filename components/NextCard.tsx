@@ -27,7 +27,7 @@ export default function NextCard({ next, focus, daily, dailySolved, names, label
           <input type="hidden" name="slug" value={next.technique} />
           <input type="hidden" name="known" value="1" />
           <button type="submit" className="text-sm text-zinc-600 underline hover:text-foreground dark:text-zinc-400">
-            Skip: I know the {names[next.technique]}
+            Skip: I know {names[next.technique]}
           </button>
         </form>
       )}
@@ -50,11 +50,11 @@ function describe(n: Next, names: Record<string, string>, label: (id: number) =>
     case "continue":
       return { title: `Continue ${label(n.puzzleId)}`, detail: "Your game in progress.", href: `/play/${n.puzzleId}`, button: "Continue" };
     case "lesson":
-      return { title: `Learn the ${names[n.technique]}`, detail: "The next technique to master. Start with its lesson.", href: `/techniques/${n.technique}#lesson`, button: "Lesson" };
+      return { title: `Learn ${names[n.technique]}`, detail: "The next technique to master. Start with its lesson.", href: `/techniques/${n.technique}#lesson`, button: "Lesson" };
     case "drills":
-      return { title: `Practise the ${names[n.technique]}`, detail: "Get four of your last five drills right to master it.", href: `/techniques/${n.technique}/drill`, button: "Drills" };
+      return { title: `Practice ${names[n.technique]}`, detail: "Get four of your last five drills right to master it.", href: `/techniques/${n.technique}/drill`, button: "Drills" };
     case "puzzle":
-      return { title: `Use the ${names[n.technique]} in a puzzle`, detail: `${label(n.puzzleId)}. Solving it without a full hint counts toward mastery.`, href: `/play/${n.puzzleId}`, button: "Play" };
+      return { title: `Use ${names[n.technique]} in a puzzle`, detail: `${label(n.puzzleId)}. Solving it without a full hint counts toward mastery.`, href: `/play/${n.puzzleId}`, button: "Play" };
     case "daily":
       return { title: "Today's puzzle", detail: `${label(n.puzzleId)}. Every technique so far is mastered.`, href: `/play/${n.puzzleId}`, button: "Play" };
   }

@@ -42,7 +42,7 @@ export function erase(b: Cells, cells: number[], given: number[]): Cells {
   return { ...b, values, notes };
 }
 
-/** Paints `cells` with colour k, or clears them if they all have it already. 0 clears. */
+/** Paints `cells` with color k, or clears them if they all have it already. 0 clears. */
 export function paint(b: Cells, cells: number[], k: number): Cells {
   if (!cells.length) return b;
   const clear = k === 0 || cells.every((c) => b.colors[c] === k);

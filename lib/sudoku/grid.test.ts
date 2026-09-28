@@ -33,7 +33,7 @@ test("boardOf accepts a board of the puzzle and nothing else", () => {
   const notes = Array(81).fill(0);
   const played = "4" + EASY.slice(1);
   const colors = Array(81).fill(0);
-  expect(boardOf(EASY, { values: played, notes, extra: 1 })).toEqual({ values: played, notes, colors }); // saved before colours
+  expect(boardOf(EASY, { values: played, notes, extra: 1 })).toEqual({ values: played, notes, colors }); // saved before colors
   expect(boardOf(EASY, { values: played, notes, colors: [4, ...colors.slice(1)] })?.colors[0]).toBe(4);
   expect(boardOf(EASY, { values: played, notes, colors: [5, ...colors.slice(1)] })).toBeNull();
   expect(boardOf(EASY, { values: played, notes, colors: colors.slice(1) })).toBeNull();

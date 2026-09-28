@@ -17,7 +17,7 @@ const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
  */
 export default function Drill({ slug, name, first, stats, coloring = false }: {
   slug: string; name: string; first: DrillView; stats: { tried: number; right: number };
-  /** Offer two paint colours, for techniques worked out by colouring a chain. */
+  /** Offer two paint colors, for techniques worked out by coloring a chain. */
   coloring?: boolean;
 }) {
   const [colors, setColors] = useState<number[]>(() => Array(81).fill(0));
@@ -81,8 +81,8 @@ export default function Drill({ slug, name, first, stats, coloring = false }: {
     <div className="flex w-full max-w-[540px] flex-col gap-4">
       <p className="text-sm">
         {placing
-          ? `Find the ${name}: select the cell and choose its digit.`
-          : `Find the ${name}: select a cell and tap a digit to mark that candidate for removal. Mark one or more, then check.`}
+          ? `Find where ${name} applies: select the cell and choose its digit.`
+          : `Find where ${name} applies: select a cell and tap a digit to mark that candidate for removal. Mark one or more, then check.`}
       </p>
       <GridView
         label={`${name} drill`}
@@ -117,7 +117,7 @@ export default function Drill({ slug, name, first, stats, coloring = false }: {
             <div className="flex items-center gap-2 text-sm">
               <span className="text-xs text-zinc-500">Paint the selected cell:</span>
               {[1, 2].map((k) => (
-                <button key={k} type="button" aria-label={`Paint colour ${k}`}
+                <button key={k} type="button" aria-label={`Paint color ${k}`}
                   onClick={() => selected >= 0 && setColors((cs) => cs.map((x, i) => (i === selected ? (x === k ? 0 : k) : x)))}
                   className={`h-9 w-12 rounded border border-zinc-300 dark:border-zinc-700 ${PAINT_CLASSES[k]}`} />
               ))}

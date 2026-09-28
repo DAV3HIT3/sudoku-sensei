@@ -41,7 +41,7 @@ test("erase clears placed digits and notes in every selected cell but never a gi
   expect(erase(e, [0, 1, 2], given)).toBe(e);
 });
 
-test("paint sets a colour, repainting the same colour clears it, and 0 clears", () => {
+test("paint sets a color, repainting the same color clears it, and 0 clears", () => {
   const b = board();
   const p = paint(b, [0, 1], 2);
   expect([p.colors[0], p.colors[1]]).toEqual([2, 2]);

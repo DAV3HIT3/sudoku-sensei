@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { GameStatus } from "@/lib/mastery";
 
-/** Numbered links to puzzles, coloured by the player's progress on each. */
+/** Numbered links to puzzles, colored by the player's progress on each. */
 export default function PuzzleLinks({ ids, status }: { ids: number[]; status: Map<number, GameStatus> }) {
   return (
     <ul className="flex flex-wrap gap-2">
