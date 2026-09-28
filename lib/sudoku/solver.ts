@@ -171,6 +171,8 @@ function* claiming(p: Position): Generator<Step> {
     }
 }
 
+const COUNT = ["", "one", "two", "three", "four"];
+
 /** n cells in a unit holding only n digits between them: the unit's other cells lose those digits. */
 const nakedSubset = (n: number, technique: string): Finder => function* (p) {
   for (let u = 0; u < 27; u++) {
@@ -183,7 +185,7 @@ const nakedSubset = (n: number, technique: string): Finder => function* (p) {
         yield step(technique, {
           eliminate,
           highlight: { cells, candidates: cands(p, cells, DIGITS) },
-          why: `${cellList(cells)} hold only ${list(digitsOf(mask))} between them, so those digits fill those cells and no other cell of ${unitName(u)} can have them.`,
+          why: `Between them, ${cellList(cells)} have only ${list(digitsOf(mask))} as candidates. ${cap(COUNT[n])} cells need ${COUNT[n]} different digits, so these digits go in these cells, one each, and no other cell of ${unitName(u)} can have them.`,
         });
     }
   }
@@ -202,7 +204,7 @@ const hiddenSubset = (n: number, technique: string): Finder => function* (p) {
         yield step(technique, {
           eliminate,
           highlight: { cells, candidates: cands(p, cells, ds) },
-          why: `In ${unitName(u)}, ${list(ds)} fit only in ${cellList(cells)}, so those cells hold those digits and nothing else.`,
+          why: `In ${unitName(u)}, the digits ${list(ds)} can go only in ${cellList(cells)}. ${cap(unitName(u))} needs ${n === 2 ? "both" : `all ${COUNT[n]}`}, and these are the only cells for them, so these cells hold ${list(ds)} and nothing else.`,
         });
     }
   }
