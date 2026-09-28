@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { drillAttempts, drills, games, lessonProgress, puzzles } from "@/db/schema";
+import { drillAttempts, drills, games, knownTechniques, lessonProgress, puzzles } from "@/db/schema";
 import { dailyPuzzle, drillScore, mastery, recommend, type Evidence } from "@/lib/mastery";
 import { TECHNIQUES } from "@/lib/sudoku/solver";
 
@@ -60,7 +60,7 @@ export async function lessonsDone(userId: number) {
  */
 export async function training(userId: number, now = Date.now()) {
   const db = getDb();
-  const [attempts, played, done, all] = await Promise.all([
+  const [attempts, played, done, all, known] = await Promise.all([
     db.select({ technique: drills.technique, correct: drillAttempts.correct, at: drillAttempts.createdAt })
       .from(drillAttempts).innerJoin(drills, eq(drills.id, drillAttempts.drillId))
       .where(eq(drillAttempts.userId, userId)).orderBy(desc(drillAttempts.createdAt)),
@@ -69,6 +69,7 @@ export async function training(userId: number, now = Date.now()) {
       .where(eq(games.userId, userId)).orderBy(desc(games.updatedAt)),
     lessonsDone(userId),
     db.select({ id: puzzles.id, difficulty: puzzles.difficulty }).from(puzzles).where(eq(puzzles.retired, false)).orderBy(asc(puzzles.id)),
+    knownBy(userId),
   ]);
   const solved = new Set(played.filter((g) => g.finishedAt).map((g) => g.puzzleId));
   const monthAgo = now - 30 * 86_400_000;
@@ -90,6 +91,7 @@ export async function training(userId: number, now = Date.now()) {
       evidence,
       mastery: mastery(evidence, now),
       lessonDone: done.has(t.slug),
+      known: known.has(t.slug),
       drillScore: drillScore(evidence),
       nextPuzzle: all.find((p) => p.difficulty === sort && !solved.has(p.id))?.id ?? null,
     };
@@ -106,4 +108,15 @@ export async function training(userId: number, now = Date.now()) {
     daily,
     dailySolved: solved.has(daily),
   };
+}
+
+/** The techniques this player has marked as already known. */
+export async function knownBy(userId: number) {
+  const rows = await getDb().select({ technique: knownTechniques.technique }).from(knownTechniques).where(eq(knownTechniques.userId, userId));
+  return new Set(rows.map((r) => r.technique));
+}
+
+export async function setKnown(userId: number, technique: string, known: boolean) {
+  if (known) await getDb().insert(knownTechniques).values({ userId, technique }).onConflictDoNothing();
+  else await getDb().delete(knownTechniques).where(and(eq(knownTechniques.userId, userId), eq(knownTechniques.technique, technique)));
 }

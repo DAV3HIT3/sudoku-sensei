@@ -10,12 +10,15 @@ export default async function Progress() {
   if (!user) notFound();
   const { techniques } = await training(user.id);
   const mastered = techniques.filter((t) => t.mastery >= MASTERED).length;
+  const known = techniques.filter((t) => t.known).length;
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-6">
       <Link href="/" className="text-sm text-zinc-500 hover:underline">← Puzzles</Link>
       <header>
         <h1 className="text-3xl font-semibold tracking-tight">Progress</h1>
-        <p className="text-zinc-600 dark:text-zinc-400">{mastered} of {techniques.length} techniques mastered.</p>
+        <p className="text-zinc-600 dark:text-zinc-400">
+          {mastered} of {techniques.length} techniques mastered{known ? `, ${known} marked as known` : ""}.
+        </p>
       </header>
       <p className="text-sm text-zinc-500">
         Mastery comes from your last five drills or from solving puzzles that need the technique without a full hint,
@@ -41,6 +44,7 @@ export default async function Progress() {
                   </div>
                   <p className="text-xs text-zinc-500">
                     {[
+                      t.known ? "marked as known" : null,
                       t.lessonDone ? "lesson done" : "lesson not started",
                       t.evidence.drills.length ? `${right} of last ${Math.min(5, t.evidence.drills.length)} drills right` : "no drills yet",
                       t.evidence.cleanSolves ? `${t.evidence.cleanSolves} clean solve${t.evidence.cleanSolves > 1 ? "s" : ""}` : null,

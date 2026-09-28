@@ -44,6 +44,8 @@ export type TechniqueState = {
   drillScore: number;
   /** An unsolved puzzle whose hardest step is this technique, if any. */
   nextPuzzle: number | null;
+  /** The player said they already know it: the training path passes it by. */
+  known?: boolean;
 };
 
 export type Next =
@@ -55,12 +57,12 @@ export type Next =
 
 /**
  * The one thing to do next. A game in progress comes first. Otherwise the first
- * technique, easiest first, not yet mastered: its lesson, then its drills, then a
- * puzzle that needs it. With everything mastered, today's puzzle.
+ * technique, easiest first, neither mastered nor marked known: its lesson, then its
+ * drills, then a puzzle that needs it. With nothing left, today's puzzle.
  */
 export function recommend(inProgress: number | null, techniques: TechniqueState[], daily: number): Next {
   if (inProgress !== null) return { kind: "continue", puzzleId: inProgress };
-  const focus = techniques.find((t) => t.mastery < MASTERED);
+  const focus = techniques.find((t) => t.mastery < MASTERED && !t.known);
   if (!focus) return { kind: "daily", puzzleId: daily };
   if (!focus.lessonDone) return { kind: "lesson", technique: focus.slug };
   if (focus.drillScore < MASTERED || focus.nextPuzzle === null) return { kind: "drills", technique: focus.slug };

@@ -46,6 +46,11 @@ test("recommend: the first unmastered technique's lesson, then drills, then a pu
     .toEqual({ kind: "drills", technique: "b" }); // no puzzle left to play
 });
 
+test("recommend: techniques marked known are passed by", () => {
+  expect(recommend(null, [state("a", { known: true }), state("b")], 1)).toEqual({ kind: "lesson", technique: "b" });
+  expect(recommend(null, [state("a", { known: true })], 42)).toEqual({ kind: "daily", puzzleId: 42 });
+});
+
 test("recommend: all mastered means today's puzzle", () => {
   expect(recommend(null, [state("a", { mastery: 1 })], 42)).toEqual({ kind: "daily", puzzleId: 42 });
 });
