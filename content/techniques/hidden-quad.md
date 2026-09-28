@@ -1,5 +1,5 @@
 # Hidden Quad
 
-When four digits are confined to the same four cells of a unit, those cells hold those four digits, and every other candidate in them can be removed.
+The same as a hidden triple, with four digits. Suppose that in a row, column or box, four digits can go only in the same four cells: no other cell of the unit has any of them as a candidate. Those four cells must hold those four digits, one each, so any other candidates in them can be removed.
 
-This is the rarest of the subsets. Counting the possible cells for each digit in a crowded unit is the way to find one.
+This is the rarest of the subsets. The way to find one is to count, digit by digit, the cells where each digit can still go in a crowded unit.
