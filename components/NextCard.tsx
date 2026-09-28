@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { markKnown } from "@/app/actions";
 import type { Next } from "@/lib/mastery";
 
 /**
@@ -21,6 +22,15 @@ export default function NextCard({ next, focus, daily, dailySolved, names, label
         </div>
         <Link href={card.href} className="shrink-0 rounded bg-sky-600 px-4 py-2 text-white">{card.button}</Link>
       </div>
+      {"technique" in next && (
+        <form action={markKnown} className="-mt-1">
+          <input type="hidden" name="slug" value={next.technique} />
+          <input type="hidden" name="known" value="1" />
+          <button type="submit" className="text-sm text-zinc-600 underline hover:text-foreground dark:text-zinc-400">
+            Skip: I know the {names[next.technique]}
+          </button>
+        </form>
+      )}
       {other && (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Or: <Link href={other.href} className="underline">{other.title[0].toLowerCase() + other.title.slice(1)}</Link>.

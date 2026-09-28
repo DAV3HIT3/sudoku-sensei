@@ -151,3 +151,14 @@ export const meta = pgTable("meta", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
 });
+
+/** Techniques a player has said they already know: the training path skips them. */
+export const knownTechniques = pgTable(
+  "known_techniques",
+  {
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    technique: text("technique").notNull().references(() => techniques.slug),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.technique] })],
+);

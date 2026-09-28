@@ -1,5 +1,6 @@
 import Link from "next/link";
 import InfoLink from "@/components/InfoLink";
+import KnownButton from "@/components/KnownButton";
 import NextCard from "@/components/NextCard";
 import PuzzlePicker from "@/components/PuzzlePicker";
 import { gameStatuses } from "@/lib/games";
@@ -16,6 +17,7 @@ export default async function Home() {
   // Grouped by the hardest technique each needs, easiest first (the list is sorted that way).
   const groups = Map.groupBy(puzzles, (p) => p.difficulty ?? -1);
   const plan = user ? await training(user.id) : null;
+  const known = new Set(plan?.techniques.filter((t) => t.known).map((t) => t.slug));
   // "X-Wing · puzzle 3": the name the picker below gives it.
   const label = (id: number) => {
     const p = puzzles.find((q) => q.id === id)!;
@@ -58,9 +60,10 @@ export default async function Home() {
             <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {rows.map(({ t, list }) => (
                 <li key={t?.slug ?? "expert"} className="grid grid-cols-[minmax(0,1fr)_auto_4rem_5rem] items-center gap-2 py-2 sm:grid-cols-[minmax(0,1fr)_auto_5rem_6rem]">
-                  <span className="flex min-w-0 items-center gap-1">
-                    <span className="truncate text-sm font-medium sm:text-base">{t ? t.name : "Unsolved by the lessons"}</span>
+                  <span className="flex min-w-0 items-center gap-0.5">
+                    <span title={t?.name} className={`truncate text-sm font-medium sm:text-base ${t && known.has(t.slug) ? "text-zinc-400 dark:text-zinc-500" : ""}`}>{t ? t.name : "Unsolved by the lessons"}</span>
                     <InfoLink href={t ? `/techniques/${t.slug}` : "/techniques"} label={t ? `About ${t.name}` : "About the techniques"} />
+                    {t && user && <KnownButton slug={t.slug} name={t.name} known={known.has(t.slug)} />}
                   </span>
                   {list.length ? (
                     <PuzzlePicker label={t ? t.name : "Beyond the lessons"} puzzles={list.map((p) => ({ id: p.id, status: status.get(p.id) }))} />
