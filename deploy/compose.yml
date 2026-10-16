@@ -1,12 +1,10 @@
-# Runs on monster against the house Postgres. From ~/proj/sudoku-sensei there:
+# Runs on monster against the house Postgres. Deploy with the runbook's bin/deploy,
+# which sets the DEPLOY_* variables read below (see its README, Deploying):
 #
-#   Deploy:    git pull --ff-only && export SENSEI_TAG=$(git rev-parse --short HEAD) \
-#                RELEASE_DATE=$(git log -1 --format=%cI) &&
-#                docker compose -f deploy/compose.yml build sudoku-sensei &&
-#                docker compose -f deploy/compose.yml up -d sudoku-sensei
+#   ssh monster '~/proj/monster-dev-runbook/bin/deploy sudoku-sensei'
 #
 # Monster is production and runs main only.
-#   Roll back: SENSEI_TAG=<older-sha> docker compose -f deploy/compose.yml up -d
+#   Roll back: DEPLOY_TAG=<older-sha> docker compose -f deploy/compose.yml up -d
 #
 # deploy/.env (mode 600, not in git) holds DATABASE_URL, the postgres:5432 form
 # add-app.sh printed, and TS_AUTHKEY for the sidecar's first join (optional: without
@@ -42,14 +40,14 @@ services:
   # restart does not strand it (monster README, Tailscale).
   sudoku-sensei:
     container_name: sudoku-sensei
-    image: sudoku-sensei:${SENSEI_TAG:-latest}
+    image: sudoku-sensei:${DEPLOY_TAG:-latest}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
       args:
-        # The commit and its date, shown on /settings.
-        APP_BUILD: ${SENSEI_TAG:-dev}
-        RELEASE_DATE: ${RELEASE_DATE:-}
+        # The build and when it was deployed, shown on /settings.
+        APP_BUILD: ${DEPLOY_VERSION:-dev}
+        RELEASE_DATE: ${DEPLOY_BUILD_DATE:-}
       tags:
         - sudoku-sensei:latest
     restart: unless-stopped

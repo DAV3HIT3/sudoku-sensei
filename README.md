@@ -47,19 +47,21 @@ because every request comes through the sidecar. Monster is production and runs
 (`npm run check`, then the dev server), merge it, and deploy `main`:
 
 ```bash
-ssh monster 'cd ~/proj/sudoku-sensei && git pull --ff-only && \
-  export SENSEI_TAG=$(git rev-parse --short HEAD) RELEASE_DATE=$(git log -1 --format=%cI) && \
-  docker compose -f deploy/compose.yml build sudoku-sensei && docker compose -f deploy/compose.yml up -d sudoku-sensei'
+ssh monster '~/proj/monster-dev-runbook/bin/deploy sudoku-sensei'
 ```
+
+That is the runbook's common deploy (its README, Deploying): it pulls `main`,
+builds and starts the project, and checks `DEPLOY_URL` from `deploy/deploy.env`
+answers through the sidecar.
 
 The version on `/settings` is `package.json`'s: bump it with each milestone
 (`npm version <x.y.z> --no-git-tag-version`). The build (commit) and release date
-(its commit date) are baked into the image, so a rolled-back image reports itself.
+(when it was deployed) are baked into the image, so a rolled-back image reports itself.
 
 Building first keeps the old container serving until the new image is ready, so
 the site is down only while the container restarts (a few seconds, including
 migrations and regrading). A failed build leaves the old one running.
 
-Roll back with `SENSEI_TAG=<older-sha> docker compose -f deploy/compose.yml up -d`.
+Roll back with `DEPLOY_TAG=<older-sha> docker compose -f deploy/compose.yml up -d`.
 `deploy/.env` on monster (mode 600, not in git) holds `DATABASE_URL`, the
 `postgres:5432` form from `add-app.sh`.
