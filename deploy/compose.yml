@@ -45,13 +45,24 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
       args:
-        # The build and when it was deployed, shown on /settings.
+        # The build and when it was deployed, shown on /settings and /api/health.
         APP_BUILD: ${DEPLOY_VERSION:-dev}
+        APP_COMMIT: ${DEPLOY_COMMIT:-}
         RELEASE_DATE: ${DEPLOY_BUILD_DATE:-}
       tags:
         - sudoku-sensei:latest
     restart: unless-stopped
     networks: [home-db]
+    # Docker's own probe, from inside the container: it prints the body so the
+    # detail lands in `docker inspect .State.Health`, where controlbox reads it
+    # (monster runbook, Health checks). The image has node but no curl.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(async r=>{console.log(await r.text());process.exit(r.ok?0:1)}).catch(e=>{console.log(e.message);process.exit(1)})"]
+      interval: 30s
+      timeout: 5s
+      # Start-up regrades every puzzle when the solver or puzzle file changed.
+      start_period: 60s
+      retries: 3
     environment:
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in deploy/.env}
       # Safe only because the sidecar is the sole way in and sets these headers

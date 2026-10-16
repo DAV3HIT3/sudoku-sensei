@@ -51,8 +51,15 @@ ssh monster '~/proj/monster-dev-runbook/bin/deploy sudoku-sensei'
 ```
 
 That is the runbook's common deploy (its README, Deploying): it pulls `main`,
-builds and starts the project, and checks `DEPLOY_URL` from `deploy/deploy.env`
-answers through the sidecar.
+builds and starts the project, and checks `DEPLOY_HEALTH_URL` from
+`deploy/deploy.env` answers through the sidecar.
+
+`GET /api/health` (no sign-in) answers 200 while the database answers with the
+puzzles seeded, and 503 when it doesn't, with JSON in the runbook's shape (its
+README, Health checks): `status`, `version`, `commit`, `started`, and `checks.db`.
+Docker calls it every 30 s from inside the container, so `docker ps` shows
+`(healthy)` and `docker inspect --format '{{json .State.Health}}' sudoku-sensei`
+shows the last answers.
 
 The version on `/settings` is `package.json`'s: bump it with each milestone
 (`npm version <x.y.z> --no-git-tag-version`). The build (commit) and release date
