@@ -44,15 +44,20 @@ Runs on monster as the app and a Tailscale sidecar, at
 tailnet is the access control, and the identity headers are only trustworthy
 because every request comes through the sidecar. Monster is production and runs
 `main` only: never check out a branch there. There is no CI: test a branch locally
-(`npm run check`, then the dev server), merge it, and deploy `main`:
+(`npm run check`, then the dev server), merge it, tag the merge on `main` with
+`package.json`'s version, and deploy that tag:
 
 ```bash
-ssh monster '~/proj/monster-dev-runbook/bin/deploy sudoku-sensei'
+git checkout main && git pull --ff-only
+git tag v<x.y.z> && git push origin v<x.y.z>
+ssh monster '~/proj/monster-dev-runbook/bin/deploy sudoku-sensei v<x.y.z>'
 ```
 
-That is the runbook's common deploy (its README, Deploying): it pulls `main`,
-builds and starts the project, and checks `DEPLOY_HEALTH_URL` from
-`deploy/deploy.env` answers through the sidecar.
+The tag names the image (`sudoku-sensei:v<x.y.z>`, what a rollback names) and is
+the `version` in `/api/health`; an untagged deploy reports a bare commit. That is
+the runbook's common deploy (its README, Deploying): it pulls `main`, refuses
+unless `main` is exactly the tag, builds and starts the project, and checks
+`DEPLOY_HEALTH_URL` from `deploy/deploy.env` answers through the sidecar.
 
 `GET /api/health` (no sign-in) answers 200 while the database answers with the
 puzzles seeded, and 503 when it doesn't, with JSON in the runbook's shape (its
@@ -61,14 +66,15 @@ Docker calls it every 30 s from inside the container, so `docker ps` shows
 `(healthy)` and `docker inspect --format '{{json .State.Health}}' sudoku-sensei`
 shows the last answers.
 
-The version on `/settings` is `package.json`'s: bump it with each milestone
-(`npm version <x.y.z> --no-git-tag-version`). The build (commit) and release date
-(when it was deployed) are baked into the image, so a rolled-back image reports itself.
+The version on `/settings` is `package.json`'s: bump it in each branch that
+ships (`npm version <x.y.z> --no-git-tag-version`), so every deploy has a new tag.
+The build (commit) and release date (when it was deployed) are baked into the
+image, so a rolled-back image reports itself.
 
 Building first keeps the old container serving until the new image is ready, so
 the site is down only while the container restarts (a few seconds, including
 migrations and regrading). A failed build leaves the old one running.
 
-Roll back with `DEPLOY_TAG=<older-sha> docker compose -f deploy/compose.yml up -d`.
+Roll back with `DEPLOY_TAG=<older-tag> docker compose -f deploy/compose.yml up -d`.
 `deploy/.env` on monster (mode 600, not in git) holds `DATABASE_URL`, the
 `postgres:5432` form from `add-app.sh`.
